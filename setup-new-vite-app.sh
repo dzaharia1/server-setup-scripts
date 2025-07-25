@@ -4,7 +4,7 @@
 SERVER="server.danzaharia.com"
 USER="dan"
 ADMIN_CONTACT="zaharia.danny@gmail.com"
-APPS_DIRECTORY="/home/$USER/react-apps"
+APPS_DIRECTORY="/home/$USER/vite-apps"
 DEFAULT_DOMAIN_FOR_SUBDOMAINS="danzaharia.com"
 
 # Set up formatting for use later
