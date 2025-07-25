@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Set up variables
-SERVER="root.fcc.lol"
-USER="fcc"
-ADMIN_CONTACT="studio@fcc.lol"
-APPS_DIRECTORY="/home/$USER/vite-apps"
-DEFAULT_DOMAIN_FOR_SUBDOMAINS="fcc.lol"
+SERVER="server.danzaharia.com"
+USER="dan"
+ADMIN_CONTACT="zaharia.danny@gmail.com"
+APPS_DIRECTORY="/home/$USER/react-apps"
+DEFAULT_DOMAIN_FOR_SUBDOMAINS="danzaharia.com"
 
 # Set up formatting for use later
 BOLD='\e[1m'
@@ -305,8 +305,8 @@ if echo "<VirtualHost *:80>
 
     # SSL Configuration using Cloudflare Origin CA
     SSLEngine on
-    SSLCertificateFile /etc/ssl/cloudflare/fcc.lol.pem
-    SSLCertificateKeyFile /etc/ssl/cloudflare/fcc.lol.key
+    SSLCertificateFile /etc/ssl/cloudflare/danzaharia.com.pem
+    SSLCertificateKeyFile /etc/ssl/cloudflare/danzaharia.com.key
     
     # SSL Security Settings
     SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1

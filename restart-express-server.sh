@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set up variables
-USER="fcc"
+USER="dan"
 SERVICES_DIRECTORY="/home/$USER/services"
 
 # Set up formatting for use later

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set up variables
-USER="fcc"
+USER="dan"
 APPS_DIRECTORY="/home/$USER/react-apps"
 
 # Set up formatting for use later

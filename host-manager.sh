@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Set up variables
-USER="fcc"
-SERVER="root.fcc.lol"
+USER="dan"
+SERVER="server.danzaharia.com"
 SCRIPTS_DIRECTORY="/home/$USER/scripts"
 APPS_DIRECTORY="/home/$USER/react-apps"
 VITE_APPS_DIRECTORY="/home/$USER/vite-apps"
