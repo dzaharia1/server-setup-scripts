@@ -13,24 +13,6 @@ BOLD_RED='\e[1;31m'
 BOLD_GREEN='\e[1;32m'
 END_COLOR='\e[0m' # This ends formatting
 
-# Function to find pm2 executable
-find_pm2() {
-    # Try to find pm2 in common locations
-    if command -v pm2 &> /dev/null; then
-        echo "pm2"
-    elif [ -f "/usr/local/bin/pm2" ]; then
-        echo "/usr/local/bin/pm2"
-    elif [ -f "/usr/bin/pm2" ]; then
-        echo "/usr/bin/pm2"
-    elif [ -f "/opt/nodejs/bin/pm2" ]; then
-        echo "/opt/nodejs/bin/pm2"
-    elif [ -f "$HOME/.npm-global/bin/pm2" ]; then
-        echo "$HOME/.npm-global/bin/pm2"
-    else
-        echo ""
-    fi
-}
-
 # Function to convert service name to hyphenated service ID
 generate_service_id() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-'
@@ -101,7 +83,7 @@ trap 'kill $SUDO_KEEP_ALIVE_PID' EXIT
 echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Password correct"
 
 # Find pm2 executable
-PM2_CMD=$(find_pm2)
+PM2_CMD=$(which pm2)
 if [ -z "$PM2_CMD" ]; then
     echo -e "${BOLD_RED}FAILED${END_COLOR} pm2 not found. Please install pm2 globally: npm install -g pm2"
     exit 1
