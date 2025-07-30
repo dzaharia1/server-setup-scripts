@@ -11,6 +11,24 @@ BOLD_GREEN='\e[1;32m'
 BOLD_CYAN='\e[1;36m'
 END_COLOR='\e[0m' # This ends formatting
 
+# Function to find pm2 executable
+find_pm2() {
+    # Try to find pm2 in common locations
+    if command -v pm2 &> /dev/null; then
+        echo "pm2"
+    elif [ -f "/usr/local/bin/pm2" ]; then
+        echo "/usr/local/bin/pm2"
+    elif [ -f "/usr/bin/pm2" ]; then
+        echo "/usr/bin/pm2"
+    elif [ -f "/opt/nodejs/bin/pm2" ]; then
+        echo "/opt/nodejs/bin/pm2"
+    elif [ -f "$HOME/.npm-global/bin/pm2" ]; then
+        echo "$HOME/.npm-global/bin/pm2"
+    else
+        echo ""
+    fi
+}
+
 # Parse CLI arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -63,6 +81,15 @@ trap 'kill $SUDO_KEEP_ALIVE_PID' EXIT
 
 echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Password correct"
 
+# Find pm2 executable
+PM2_CMD=$(find_pm2)
+if [ -z "$PM2_CMD" ]; then
+    echo -e "${BOLD_RED}FAILED${END_COLOR} pm2 not found. Please install pm2 globally: npm install -g pm2"
+    exit 1
+else
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Found pm2 at: $PM2_CMD"
+fi
+
 # Find the DOMAIN_NAME from setup-log.json
 SETUP_LOG_FILE="$SERVICES_DIRECTORY/$SERVICE_ID/setup-log.json"
 if [ -f "$SETUP_LOG_FILE" ]; then
@@ -86,9 +113,9 @@ else
 fi
 
 # Restart node process with pm2
-if pm2 restart "$SERVICE_ID"; then
+if $PM2_CMD restart "$SERVICE_ID"; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Restarted node process with pm2"
-    pm2 save
+    $PM2_CMD save
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot restart node process with pm2"
 fi

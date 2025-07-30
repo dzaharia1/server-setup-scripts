@@ -13,6 +13,24 @@ BOLD_RED='\e[1;31m'
 BOLD_GREEN='\e[1;32m'
 END_COLOR='\e[0m' # This ends formatting
 
+# Function to find pm2 executable
+find_pm2() {
+    # Try to find pm2 in common locations
+    if command -v pm2 &> /dev/null; then
+        echo "pm2"
+    elif [ -f "/usr/local/bin/pm2" ]; then
+        echo "/usr/local/bin/pm2"
+    elif [ -f "/usr/bin/pm2" ]; then
+        echo "/usr/bin/pm2"
+    elif [ -f "/opt/nodejs/bin/pm2" ]; then
+        echo "/opt/nodejs/bin/pm2"
+    elif [ -f "$HOME/.npm-global/bin/pm2" ]; then
+        echo "$HOME/.npm-global/bin/pm2"
+    else
+        echo ""
+    fi
+}
+
 # Function to convert service name to hyphenated service ID
 generate_service_id() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-'
@@ -82,6 +100,15 @@ trap 'kill $SUDO_KEEP_ALIVE_PID' EXIT
 
 echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Password correct"
 
+# Find pm2 executable
+PM2_CMD=$(find_pm2)
+if [ -z "$PM2_CMD" ]; then
+    echo -e "${BOLD_RED}FAILED${END_COLOR} pm2 not found. Please install pm2 globally: npm install -g pm2"
+    exit 1
+else
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Found pm2 at: $PM2_CMD"
+fi
+
 # Create root directory for service
 if echo "$SUDO_PASSWORD" | sudo -S mkdir -p "$SERVICES_DIRECTORY/$SERVICE_ID"; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created root directory at $SERVICES_DIRECTORY/$SERVICE_ID"
@@ -120,7 +147,7 @@ const app = express();
 const port = $PORT;
 
 app.get('/', (req, res) => {
-  res.send('Hello world!');
+  res.send('$SERVICE_NAME');
 });
 
 app.listen(port, () => {
@@ -179,9 +206,9 @@ fi
 
 # Start node process
 if cd "$SERVICES_DIRECTORY/$SERVICE_ID"; then
-    if pm2 start npm --name "$SERVICE_ID" -- run start; then
+    if $PM2_CMD start npm --name "$SERVICE_ID" -- run start; then
         echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node process with pm2 under name $SERVICE_ID"
-        pm2 save
+        $PM2_CMD save
     else
         echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot start node process with pm2"
     fi
@@ -305,7 +332,7 @@ echo "Installing dependencies"
 npm install --no-save || { echo "npm install failed"; exit 1; }
 
 echo "Restarting process with pm2"
-if pm2 restart "$SERVICE_ID"; then
+if $PM2_CMD restart "$SERVICE_ID"; then
     echo -e \"${BOLD_GREEN}SUCCESS${END_COLOR} Deployed main to $SERVICES_DIRECTORY/$SERVICE_ID\"
 else
     echo "Failed to restart process with pm2"
