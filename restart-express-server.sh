@@ -92,13 +92,11 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot install node modules"
 fi
 
-# Build the project if a build script exists
-if [ -f "package.json" ] && [ -n "$(jq -r '.scripts.build' package.json)" ]; then
-    if npm run build; then
-        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Project built successfully"
-    else
-        echo -e "${BOLD_RED}Skipped${END_COLOR} No build script"
-    fi
+# Check for build script and run it if it exists
+if cd "$SERVICES_DIRECTORY/$SERVICE_ID" && npm run build > /dev/null 2>&1; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Ran build script"
+else
+    echo -e "${BOLD_CYAN}INFO${END_COLOR} No build script found or build failed (this is normal for some projects)"
 fi
 
 # Start node process
