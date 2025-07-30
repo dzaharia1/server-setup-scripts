@@ -4,6 +4,10 @@
 USER="dan"
 SERVICES_DIRECTORY="/home/$USER/services"
 
+# Initialize NVM to ensure pm2 is available
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 # Set up formatting for use later
 BOLD='\e[1m'
 BOLD_RED='\e[1;31m'

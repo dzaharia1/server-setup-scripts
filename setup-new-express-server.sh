@@ -7,6 +7,10 @@ ADMIN_CONTACT="zaharia.danny@gmail.com"
 SERVICES_DIRECTORY="/home/$USER/services"
 DEFAULT_DOMAIN_FOR_SUBDOMAINS="danzaharia.com"
 
+# Initialize NVM to ensure pm2 is available
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 # Set up formatting for use later
 BOLD='\e[1m'
 BOLD_RED='\e[1;31m'
