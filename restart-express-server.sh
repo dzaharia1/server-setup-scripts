@@ -92,6 +92,15 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot install node modules"
 fi
 
+# Build the project if a build script exists
+if [ -f "package.json" ] && [ -n "$(jq -r '.scripts.build' package.json)" ]; then
+    if npm run build; then
+        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Project built successfully"
+    else
+        echo -e "${BOLD_RED}Skipped${END_COLOR} No build script"
+    fi
+fi
+
 # Start node process
 if cd "$SERVICES_DIRECTORY/$SERVICE_ID"; then
     setsid nohup npm run start > ./output.log 2>&1 &
@@ -100,7 +109,7 @@ if cd "$SERVICES_DIRECTORY/$SERVICE_ID"; then
     if kill -0 $NODE_PID > /dev/null 2>&1; then
         echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node with process ID $NODE_PID"
     else
-        echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot start node"
+        echo -e "${BOLD_CYAN}FAILED${END_COLOR} Cannot start node"
     fi
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot change directory to $SERVICES_DIRECTORY/$SERVICE_ID"
