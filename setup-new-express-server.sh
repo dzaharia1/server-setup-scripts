@@ -316,6 +316,7 @@ npm install --no-save || { echo "npm install failed"; exit 1; }
 echo "Restarting process with pm2"
 if $PM2_CMD restart "$SERVICE_ID"; then
     echo -e \"${BOLD_GREEN}SUCCESS${END_COLOR} Deployed main to $SERVICES_DIRECTORY/$SERVICE_ID\"
+    $PM2_CMD save
 else
     echo "Failed to restart process with pm2"
     exit 1
