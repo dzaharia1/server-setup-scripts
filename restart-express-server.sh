@@ -78,13 +78,6 @@ else
     exit 1
 fi
 
-# Stop node process
-if pkill -f "node.*$SERVICES_DIRECTORY/$SERVICE_ID/" > /dev/null 2>&1; then
-    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Stopped node process"
-else
-    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot stop node process"
-fi
-
 # Install node modules
 if cd $SERVICES_DIRECTORY/$SERVICE_ID && npm install --no-save; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Installed node modules"
@@ -92,18 +85,12 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot install node modules"
 fi
 
-# Start node process
-if cd "$SERVICES_DIRECTORY/$SERVICE_ID"; then
-    setsid nohup npm run start > ./output.log 2>&1 &
-    NODE_PID=$!
-    
-    if kill -0 $NODE_PID > /dev/null 2>&1; then
-        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node with process ID $NODE_PID"
-    else
-        echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot start node"
-    fi
+# Restart node process with pm2
+if pm2 restart "$SERVICE_ID"; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Restarted node process with pm2"
+    pm2 save
 else
-    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot change directory to $SERVICES_DIRECTORY/$SERVICE_ID"
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot restart node process with pm2"
 fi
 
 # Reload Apache

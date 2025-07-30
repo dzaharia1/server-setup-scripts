@@ -77,6 +77,14 @@ else
     exit 1
 fi
 
+# Stop and delete pm2 process
+if pm2 delete "$SERVICE_ID"; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Stopped and removed $SERVICE_ID from pm2"
+    pm2 save
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot stop or remove $SERVICE_ID from pm2"
+fi
+
 # Disable site in Apache
 if sudo a2dissite $DOMAIN_NAME > /dev/null; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Disabled site in Apache"
@@ -96,13 +104,6 @@ if sudo rm -r $SERVICES_DIRECTORY/$SERVICE_ID/; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Deleted site directory"
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot delete site directory"
-fi
-
-# Stop node process
-if pkill -f "node.*$SERVICES_DIRECTORY/$SERVICE_ID/" > /dev/null 2>&1; then
-    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Stopped node process"
-else
-    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot stop node process"
 fi
 
 # Reload Apache

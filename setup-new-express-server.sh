@@ -179,13 +179,11 @@ fi
 
 # Start node process
 if cd "$SERVICES_DIRECTORY/$SERVICE_ID"; then
-    setsid nohup npm run start > ./output.log 2>&1 &
-    NODE_PID=$!
-    
-    if kill -0 $NODE_PID > /dev/null 2>&1; then
-        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node with process ID $NODE_PID"
+    if pm2 start npm --name "$SERVICE_ID" -- run start; then
+        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node process with pm2 under name $SERVICE_ID"
+        pm2 save
     else
-        echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot start node"
+        echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot start node process with pm2"
     fi
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot change directory to $SERVICES_DIRECTORY/$SERVICE_ID"
@@ -306,17 +304,11 @@ cd "$SERVICES_DIRECTORY/$SERVICE_ID" || { echo "Failed to change directory"; exi
 echo "Installing dependencies"
 npm install --no-save || { echo "npm install failed"; exit 1; }
 
-echo "Stopping existing process"
-pkill -f "node.*$SERVICES_DIRECTORY/$SERVICE_ID" > /dev/null 2>&1 || true
-
-echo "Starting new process"
-nohup npm run start > ./output.log 2>&1 &
-
-sleep 2
-if pgrep -f "node.*$SERVICES_DIRECTORY/$SERVICE_ID" > /dev/null; then
+echo "Restarting process with pm2"
+if pm2 restart "$SERVICE_ID"; then
     echo -e \"${BOLD_GREEN}SUCCESS${END_COLOR} Deployed main to $SERVICES_DIRECTORY/$SERVICE_ID\"
 else
-    echo "Failed to start the process"
+    echo "Failed to restart process with pm2"
     exit 1
 fi" | sudo tee $SERVICES_DIRECTORY/$SERVICE_ID/.git/hooks/post-receive > /dev/null; then
 	echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created post-receive hook"
