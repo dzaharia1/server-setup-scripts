@@ -93,6 +93,7 @@ else
 fi
 
 # Check for build script and run it if it exists
+echo -e "${BOLD_CYAN}INFO${END_COLOR} Running build script (if present)"
 if cd "$SERVICES_DIRECTORY/$SERVICE_ID" && npm run build > /dev/null 2>&1; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Ran build script"
 else
