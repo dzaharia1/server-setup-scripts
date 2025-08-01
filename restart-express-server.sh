@@ -4,10 +4,6 @@
 USER="dan"
 SERVICES_DIRECTORY="/home/$USER/services"
 
-# Initialize NVM to ensure pm2 is available
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
 # Set up formatting for use later
 BOLD='\e[1m'
 BOLD_RED='\e[1;31m'
@@ -67,15 +63,6 @@ trap 'kill $SUDO_KEEP_ALIVE_PID' EXIT
 
 echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Password correct"
 
-# Find pm2 executable
-PM2_CMD=$(which pm2)
-if [ -z "$PM2_CMD" ]; then
-    echo -e "${BOLD_RED}FAILED${END_COLOR} pm2 not found. Please install pm2 globally: npm install -g pm2"
-    exit 1
-else
-    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Found pm2 at: $PM2_CMD"
-fi
-
 # Find the DOMAIN_NAME from setup-log.json
 SETUP_LOG_FILE="$SERVICES_DIRECTORY/$SERVICE_ID/setup-log.json"
 if [ -f "$SETUP_LOG_FILE" ]; then
@@ -107,9 +94,9 @@ else
 fi
 
 # Restart node process with pm2
-if $PM2_CMD restart "$SERVICE_ID"; then
+if pm2 restart "$SERVICE_ID"; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Restarted node process with pm2"
-    $PM2_CMD save
+    pm2 save
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot restart node process with pm2"
 fi

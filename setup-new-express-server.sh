@@ -7,10 +7,6 @@ ADMIN_CONTACT="zaharia.danny@gmail.com"
 SERVICES_DIRECTORY="/home/$USER/services"
 DEFAULT_DOMAIN_FOR_SUBDOMAINS="danzaharia.com"
 
-# Initialize NVM to ensure pm2 is available
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
 # Set up formatting for use later
 BOLD='\e[1m'
 BOLD_RED='\e[1;31m'
@@ -85,15 +81,6 @@ SUDO_KEEP_ALIVE_PID=$!
 trap 'kill $SUDO_KEEP_ALIVE_PID' EXIT
 
 echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Password correct"
-
-# Find pm2 executable
-PM2_CMD=$(which pm2)
-if [ -z "$PM2_CMD" ]; then
-    echo -e "${BOLD_RED}FAILED${END_COLOR} pm2 not found. Please install pm2 globally: npm install -g pm2"
-    exit 1
-else
-    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Found pm2 at: $PM2_CMD"
-fi
 
 # Create root directory for service
 if echo "$SUDO_PASSWORD" | sudo -S mkdir -p "$SERVICES_DIRECTORY/$SERVICE_ID"; then
@@ -192,9 +179,9 @@ fi
 
 # Start node process
 if cd "$SERVICES_DIRECTORY/$SERVICE_ID"; then
-    if $PM2_CMD start npm --name "$SERVICE_ID" -- run start; then
+    if pm2 start npm --name "$SERVICE_ID" -i max -- run start; then
         echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node process with pm2 under name $SERVICE_ID"
-        $PM2_CMD save
+        pm2 save
     else
         echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot start node process with pm2"
     fi
@@ -318,9 +305,9 @@ echo "Installing dependencies"
 npm install --no-save || { echo "npm install failed"; exit 1; }
 
 echo "Restarting process with pm2"
-if $PM2_CMD restart "$SERVICE_ID"; then
+if pm2 restart "$SERVICE_ID"; then
     echo -e \"${BOLD_GREEN}SUCCESS${END_COLOR} Deployed main to $SERVICES_DIRECTORY/$SERVICE_ID\"
-    $PM2_CMD save
+    pm2 save
 else
     echo "Failed to restart process with pm2"
     exit 1
