@@ -7,6 +7,10 @@ ADMIN_CONTACT="zaharia.danny@gmail.com"
 SERVICES_DIRECTORY="/home/$USER/services"
 DEFAULT_DOMAIN_FOR_SUBDOMAINS="danzaharia.com"
 
+# Initialize NVM to ensure pm2 is available
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 # Set up formatting for use later
 BOLD='\e[1m'
 BOLD_RED='\e[1;31m'
@@ -82,6 +86,15 @@ trap 'kill $SUDO_KEEP_ALIVE_PID' EXIT
 
 echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Password correct"
 
+# Find pm2 executable
+PM2_CMD=$(which pm2)
+if [ -z "$PM2_CMD" ]; then
+    echo -e "${BOLD_RED}FAILED${END_COLOR} pm2 not found. Please install pm2 globally: npm install -g pm2"
+    exit 1
+else
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Found pm2 at: $PM2_CMD"
+fi
+
 # Create root directory for service
 if echo "$SUDO_PASSWORD" | sudo -S mkdir -p "$SERVICES_DIRECTORY/$SERVICE_ID"; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created root directory at $SERVICES_DIRECTORY/$SERVICE_ID"
@@ -120,7 +133,7 @@ const app = express();
 const port = $PORT;
 
 app.get('/', (req, res) => {
-  res.send('Hello world!');
+  res.send('$SERVICE_NAME');
 });
 
 app.listen(port, () => {
@@ -179,13 +192,11 @@ fi
 
 # Start node process
 if cd "$SERVICES_DIRECTORY/$SERVICE_ID"; then
-    setsid nohup npm run start > ./output.log 2>&1 &
-    NODE_PID=$!
-    
-    if kill -0 $NODE_PID > /dev/null 2>&1; then
-        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node with process ID $NODE_PID"
+    if $PM2_CMD start npm --name "$SERVICE_ID" -- run start; then
+        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node process with pm2 under name $SERVICE_ID"
+        $PM2_CMD save
     else
-        echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot start node"
+        echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot start node process with pm2"
     fi
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot change directory to $SERVICES_DIRECTORY/$SERVICE_ID"
@@ -306,17 +317,12 @@ cd "$SERVICES_DIRECTORY/$SERVICE_ID" || { echo "Failed to change directory"; exi
 echo "Installing dependencies"
 npm install --no-save || { echo "npm install failed"; exit 1; }
 
-echo "Stopping existing process"
-pkill -f "node.*$SERVICES_DIRECTORY/$SERVICE_ID" > /dev/null 2>&1 || true
-
-echo "Starting new process"
-nohup npm run start > ./output.log 2>&1 &
-
-sleep 2
-if pgrep -f "node.*$SERVICES_DIRECTORY/$SERVICE_ID" > /dev/null; then
+echo "Restarting process with pm2"
+if $PM2_CMD restart "$SERVICE_ID"; then
     echo -e \"${BOLD_GREEN}SUCCESS${END_COLOR} Deployed main to $SERVICES_DIRECTORY/$SERVICE_ID\"
+    $PM2_CMD save
 else
-    echo "Failed to start the process"
+    echo "Failed to restart process with pm2"
     exit 1
 fi" | sudo tee $SERVICES_DIRECTORY/$SERVICE_ID/.git/hooks/post-receive > /dev/null; then
 	echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created post-receive hook"

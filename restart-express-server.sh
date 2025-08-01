@@ -4,6 +4,10 @@
 USER="dan"
 SERVICES_DIRECTORY="/home/$USER/services"
 
+# Initialize NVM to ensure pm2 is available
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 # Set up formatting for use later
 BOLD='\e[1m'
 BOLD_RED='\e[1;31m'
@@ -63,6 +67,15 @@ trap 'kill $SUDO_KEEP_ALIVE_PID' EXIT
 
 echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Password correct"
 
+# Find pm2 executable
+PM2_CMD=$(which pm2)
+if [ -z "$PM2_CMD" ]; then
+    echo -e "${BOLD_RED}FAILED${END_COLOR} pm2 not found. Please install pm2 globally: npm install -g pm2"
+    exit 1
+else
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Found pm2 at: $PM2_CMD"
+fi
+
 # Find the DOMAIN_NAME from setup-log.json
 SETUP_LOG_FILE="$SERVICES_DIRECTORY/$SERVICE_ID/setup-log.json"
 if [ -f "$SETUP_LOG_FILE" ]; then
@@ -76,13 +89,6 @@ if [ -f "$SETUP_LOG_FILE" ]; then
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot find file setup-log.json"
     exit 1
-fi
-
-# Stop node process
-if pkill -f "node.*$SERVICES_DIRECTORY/$SERVICE_ID/" > /dev/null 2>&1; then
-    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Stopped node process"
-else
-    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot stop node process"
 fi
 
 # Install node modules
@@ -100,18 +106,12 @@ else
     echo -e "${BOLD_CYAN}INFO${END_COLOR} No build script found or build failed (this is normal for some projects)"
 fi
 
-# Start node process
-if cd "$SERVICES_DIRECTORY/$SERVICE_ID"; then
-    setsid nohup npm run start > ./output.log 2>&1 &
-    NODE_PID=$!
-    
-    if kill -0 $NODE_PID > /dev/null 2>&1; then
-        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node with process ID $NODE_PID"
-    else
-        echo -e "${BOLD_CYAN}FAILED${END_COLOR} Cannot start node"
-    fi
+# Restart node process with pm2
+if $PM2_CMD restart "$SERVICE_ID"; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Restarted node process with pm2"
+    $PM2_CMD save
 else
-    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot change directory to $SERVICES_DIRECTORY/$SERVICE_ID"
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot restart node process with pm2"
 fi
 
 # Reload Apache
