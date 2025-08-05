@@ -179,7 +179,7 @@ fi
 
 # Start node process
 if cd "$SERVICES_DIRECTORY/$SERVICE_ID"; then
-    if pm2 start npm --name "$SERVICE_ID" -i max -- run start; then
+    if pm2 start npm --name "$SERVICE_ID" -- run start; then
         echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Started node process with pm2 under name $SERVICE_ID"
         pm2 save
     else
