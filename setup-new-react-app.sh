@@ -5,7 +5,9 @@ SERVER="server.danzaharia.com"
 USER="dan"
 ADMIN_CONTACT="zaharia.danny@gmail.com"
 APPS_DIRECTORY="/home/$USER/react-apps"
-DEFAULT_DOMAIN_FOR_SUBDOMAINS="danzaharia.com"
+DZ_DOMAIN="danzaharia.com"
+IM_DOMAIN="imadean.app"
+DM_DOMAIN="danmade.app"
 
 # Set up formatting for use later
 BOLD='\e[1m'
@@ -27,16 +29,21 @@ read -p "App ID (Default: "${DEFAULT_APP_ID}"): " APP_ID
 APP_ID=${APP_ID:-$DEFAULT_APP_ID}
 
 # Prompt for the domain name with the default value
-DEFAULT_DOMAIN_NAME="$APP_ID.$DEFAULT_DOMAIN_FOR_SUBDOMAINS"
-read -p "URL (Default: "${DEFAULT_DOMAIN_NAME}"): " DOMAIN_NAME
-DOMAIN_NAME=${DOMAIN_NAME:-$DEFAULT_DOMAIN_NAME}
+DZ_DOMAIN_NAME="$APP_ID.$DZ_DOMAIN"
+IM_DOMAIN_NAME="$APP_ID.$IM_DOMAIN"
+DM_DOMAIN_NAME="$APP_ID.$DM_DOMAIN"
+
+read -p "URL (Default: "${DZ_DOMAIN_NAME}"): " DOMAIN_NAME
+DOMAIN_NAME=${DOMAIN_NAME:-$DZ_DOMAIN_NAME}
 
 echo " "
 
 # Display the collected information
 echo "App Name: $APP_NAME"
 echo "App ID: $APP_ID"
-echo "URL: https://$DOMAIN_NAME"
+echo "DZ Domain: https://$DZ_DOMAIN_NAME"
+echo "IM Domain: https://$IM_DOMAIN_NAME"
+echo "DM Domain: https://$DM_DOMAIN_NAME"
 
 echo " "
 
@@ -294,7 +301,7 @@ fi
 sudo touch /etc/apache2/sites-available/$DOMAIN_NAME.conf
 if echo "<VirtualHost *:80>
     ServerName $DOMAIN_NAME
-    ServerAlias www.$DOMAIN_NAME
+    ServerAlias www.$DOMAIN_NAME $DZ_DOMAIN_NAME $IM_DOMAIN_NAME $DM_DOMAIN_NAME
     ServerAdmin $ADMIN_CONTACT
 
     # Redirect HTTP to HTTPS
@@ -306,7 +313,7 @@ if echo "<VirtualHost *:80>
 
 <VirtualHost *:443>
     ServerName $DOMAIN_NAME
-    ServerAlias www.$DOMAIN_NAME
+    ServerAlias www.$DOMAIN_NAME $DZ_DOMAIN_NAME $IM_DOMAIN_NAME $DM_DOMAIN_NAME
     ServerAdmin $ADMIN_CONTACT
 
     # SSL Configuration using Cloudflare Origin CA
