@@ -417,6 +417,8 @@ echo -e "--------------- ${BOLD}DONE${END_COLOR} ---------------"
 echo -e "------------------------------------ \n"
 echo -e "${BOLD}*** $APP_ID is now set up! ***${END_COLOR}\n"
 echo -e "* Visit ${BOLD}https://$DOMAIN_NAME${END_COLOR} to see the new site"
+echo -e "* Or ${BOLD}https://$DZ_DOMAIN_NAME${END_COLOR}"
+echo -e "* Or ${BOLD}https://$IM_DOMAIN_NAME${END_COLOR}"
 echo -e "\n* Clone this repository and push to origin to deploy: \n${BOLD}git clone $USER@$SERVER:$APPS_DIRECTORY/$APP_ID${END_COLOR}"
 echo -e " "
 
