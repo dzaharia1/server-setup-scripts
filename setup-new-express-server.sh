@@ -33,15 +33,14 @@ DZ_DOMAIN_NAME="$SERVICE_ID.$DZ_DOMAIN"
 IM_DOMAIN_NAME="$SERVICE_ID.$IM_DOMAIN"
 DM_DOMAIN_NAME="$SERVICE_ID.$DM_DOMAIN"
 
-read -p "URL (Default: "${DZ_DOMAIN_NAME}"): " DOMAIN_NAME
-DOMAIN_NAME=${DOMAIN_NAME:-$DZ_DOMAIN_NAME}
+read -p "URL (Default: "${DM_DOMAIN_NAME}"): " DOMAIN_NAME
+DOMAIN_NAME=${DOMAIN_NAME:-$DM_DOMAIN_NAME}
 
 echo " "
 
 # Display the collected information
 echo "Service Name: $SERVICE_NAME"
 echo "Service ID: $SERVICE_ID"
-echo "URL: https://$DOMAIN_NAME"
 echo "DZ Domain: https://$DZ_DOMAIN_NAME"
 echo "IM Domain: https://$IM_DOMAIN_NAME"
 echo "DM Domain: https://$DM_DOMAIN_NAME"
