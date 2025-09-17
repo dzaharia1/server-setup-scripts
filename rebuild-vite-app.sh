@@ -85,6 +85,14 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot install node modules"
 fi
 
+# Delete dist directory
+DIST_DIR="$APPS_DIRECTORY/$APP_ID/dist"
+if [ -d "$DIST_DIR" ]; then
+    if sudo rm -r "$DIST_DIR"; then
+        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Deleted dist directory"
+    fi
+fi
+
 # Build app for production
 if cd $APPS_DIRECTORY/$APP_ID && npm run build; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Built app for production"
