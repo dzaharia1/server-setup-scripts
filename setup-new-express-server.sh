@@ -8,6 +8,7 @@ SERVICES_DIRECTORY="/home/$USER/services"
 DZ_DOMAIN="danzaharia.com"
 IM_DOMAIN="imadean.app"
 DM_DOMAIN="danmade.app"
+ADM_DOMAIN="adanmade.app"
 
 # Set up formatting for use later
 BOLD='\e[1m'
@@ -32,6 +33,8 @@ SERVICE_ID=${SERVICE_ID:-$DEFAULT_SERVICE_ID}
 DZ_DOMAIN_NAME="$SERVICE_ID.$DZ_DOMAIN"
 IM_DOMAIN_NAME="$SERVICE_ID.$IM_DOMAIN"
 DM_DOMAIN_NAME="$SERVICE_ID.$DM_DOMAIN"
+ADM_DOMAIN_NAME="$SERVICE_ID.$ADM_DOMAIN"
+
 
 read -p "URL (Default: "${DM_DOMAIN_NAME}"): " DOMAIN_NAME
 DOMAIN_NAME=${DOMAIN_NAME:-$DM_DOMAIN_NAME}
@@ -44,6 +47,9 @@ echo "Service ID: $SERVICE_ID"
 echo "DZ Domain: https://$DZ_DOMAIN_NAME"
 echo "IM Domain: https://$IM_DOMAIN_NAME"
 echo "DM Domain: https://$DM_DOMAIN_NAME"
+echo "ADM Domain: https://$ADM_DOMAIN_NAME"
+
+echo " "
 
 # Find an available port
 find_available_port() {
@@ -200,7 +206,7 @@ fi
 sudo touch /etc/apache2/sites-available/$DOMAIN_NAME.conf
 if echo "<VirtualHost *:80>
     ServerName $DOMAIN_NAME
-    ServerAlias www.$DOMAIN_NAME $DZ_DOMAIN_NAME $IM_DOMAIN_NAME $DM_DOMAIN_NAME
+    ServerAlias www.$DOMAIN_NAME $DZ_DOMAIN_NAME $IM_DOMAIN_NAME $DM_DOMAIN_NAME $ADM_DOMAIN_NAME
     ServerAdmin $ADMIN_CONTACT
 
     # Redirect HTTP to HTTPS
@@ -212,7 +218,7 @@ if echo "<VirtualHost *:80>
 
 <VirtualHost *:443>
     ServerName $DOMAIN_NAME
-    ServerAlias www.$DOMAIN_NAME $DZ_DOMAIN_NAME $IM_DOMAIN_NAME $DM_DOMAIN_NAME
+    ServerAlias www.$DOMAIN_NAME $DZ_DOMAIN_NAME $IM_DOMAIN_NAME $DM_DOMAIN_NAME $ADM_DOMAIN_NAME
     ServerAdmin $ADMIN_CONTACT
 
     # SSL Configuration using Cloudflare Origin CA
@@ -332,6 +338,8 @@ echo -e "${BOLD}*** $SERVICE_ID is now set up! ***${END_COLOR}\n"
 echo -e "* Visit ${BOLD}https://$DOMAIN_NAME${END_COLOR} to see the new site"
 echo -e "* Or ${BOLD}https://$DZ_DOMAIN_NAME${END_COLOR}"
 echo -e "* Or ${BOLD}https://$IM_DOMAIN_NAME${END_COLOR}"
+echo -e "* Or ${BOLD}https://$DM_DOMAIN_NAME${END_COLOR}"
+echo -e "* Or ${BOLD}https://$ADM_DOMAIN_NAME${END_COLOR}"
 echo -e "\n* Clone this repository and push to origin to deploy: \n${BOLD}git clone $USER@$SERVER:$SERVICES_DIRECTORY/$SERVICE_ID${END_COLOR}"
 echo -e " "
 
