@@ -101,6 +101,19 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create public directory at $APPS_DIRECTORY/$APP_ID/public"
 fi
 
+#create a .prettierrc file
+sudo touch $APPS_DIRECTORY/$APP_ID/.prettierrc
+if echo "{
+  "bracketSameLine": true,
+  "trailingComma": "all",
+  "singleQuote": true
+}
+" | sudo tee $APPS_DIRECTORY/$APP_ID/.prettierrc > /dev/null; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created .prettierrc file at $APPS_DIRECTORY/$APP_ID/.prettierrc"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create .prettierrc file at $APPS_DIRECTORY/$APP_ID/.prettierrc"
+fi
+
 # Create a basic src/App.jsx file
 sudo touch $APPS_DIRECTORY/$APP_ID/src/App.jsx
 if echo "import React from \"react\";
@@ -317,14 +330,14 @@ if echo "<VirtualHost *:80>
     SSLEngine on
     SSLCertificateFile /etc/ssl/cloudflare/danzaharia.com.pem
     SSLCertificateKeyFile /etc/ssl/cloudflare/danzaharia.com.key
-    
+
     # SSL Security Settings
     SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1
     SSLCipherSuite ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!aNULL:!MD5:!DSS
     SSLHonorCipherOrder on
 
     DocumentRoot $APPS_DIRECTORY/$APP_ID/dist
-    
+
     <Directory $APPS_DIRECTORY/$APP_ID/dist>
         AllowOverride all
         Require all granted
@@ -334,11 +347,11 @@ if echo "<VirtualHost *:80>
     CustomLog /var/log/apache2/$DOMAIN_NAME-ssl-access.log combined
 </VirtualHost>" | sudo tee /etc/apache2/sites-available/$DOMAIN_NAME.conf > /dev/null; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created Apache config file at /etc/apache2/sites-available/$DOMAIN_NAME.conf"
-    
+
     # Enable SSL module if not already enabled
     sudo a2enmod ssl
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Enabled SSL module"
-    
+
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create Apache config file at /etc/apache2/sites-available/$DOMAIN_NAME.conf"
 fi
@@ -379,7 +392,7 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create basic gitignore file"
 fi
 
-# Set up a hook that deploys any commits made to this repo 
+# Set up a hook that deploys any commits made to this repo
 sudo touch $APPS_DIRECTORY/$APP_ID/.git/hooks/post-receive
 sudo chmod +x $APPS_DIRECTORY/$APP_ID/.git/hooks/post-receive
 sudo chown $USER $APPS_DIRECTORY/$APP_ID/.git/hooks/post-receive

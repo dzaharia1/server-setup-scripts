@@ -109,6 +109,19 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot change permissions to $USER"
 fi
 
+#create a .prettierrc file
+sudo touch $APPS_DIRECTORY/$APP_ID/.prettierrc
+if echo "{
+  "bracketSameLine": true,
+  "trailingComma": "all",
+  "singleQuote": true
+}
+" | sudo tee $APPS_DIRECTORY/$APP_ID/.prettierrc > /dev/null; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created .prettierrc file at $APPS_DIRECTORY/$APP_ID/.prettierrc"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create .prettierrc file at $APPS_DIRECTORY/$APP_ID/.prettierrc"
+fi
+
 # Create a setup-log.json
 sudo touch "$SERVICES_DIRECTORY/$SERVICE_ID/setup-log.json"
 if echo "{
@@ -225,7 +238,7 @@ if echo "<VirtualHost *:80>
     SSLEngine on
     SSLCertificateFile /etc/ssl/cloudflare/danzaharia.com.pem
     SSLCertificateKeyFile /etc/ssl/cloudflare/danzaharia.com.key
-    
+
     # SSL Security Settings
     SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1
     SSLCipherSuite ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!aNULL:!MD5:!DSS
@@ -238,7 +251,7 @@ if echo "<VirtualHost *:80>
     <Proxy *>
         Require all granted
     </Proxy>
-    
+
     ProxyPass / http://127.0.0.1:$PORT/
     ProxyPassReverse / http://127.0.0.1:$PORT/
 
@@ -246,11 +259,11 @@ if echo "<VirtualHost *:80>
     CustomLog /var/log/apache2/$DOMAIN_NAME-ssl-access.log combined
 </VirtualHost>" | sudo tee /etc/apache2/sites-available/$DOMAIN_NAME.conf > /dev/null; then
 	echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created Apache config file at /etc/apache2/sites-available/$DOMAIN_NAME.conf"
-	
+
 	# Enable SSL module if not already enabled
 	sudo a2enmod ssl
 	echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Enabled SSL module"
-	
+
 else
 	echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create Apache config file at /etc/apache2/sites-available/$DOMAIN_NAME.conf"
 fi
@@ -305,7 +318,7 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot change permissions to set $USER as owner"
 fi
 
-# Set up a hook that deploys any commits made to this repo 
+# Set up a hook that deploys any commits made to this repo
 sudo touch $SERVICES_DIRECTORY/$SERVICE_ID/.git/hooks/post-receive
 sudo chmod +x $SERVICES_DIRECTORY/$SERVICE_ID/.git/hooks/post-receive
 sudo chown $USER $SERVICES_DIRECTORY/$SERVICE_ID/.git/hooks/post-receive
