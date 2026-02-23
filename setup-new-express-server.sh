@@ -224,7 +224,17 @@ try {
   let config;
   try { config = require(filePath); } catch(e) { config = { apps: [] }; }
   config.apps = config.apps.filter(a => a.name !== '$SERVICE_ID');
-  config.apps.push({ name: '$SERVICE_ID', script: '$SERVICES_DIRECTORY/$SERVICE_ID/server.js' });
+  config.apps.push({
+    name: '$SERVICE_ID',
+    script: 'server.js',
+    cwd: '$SERVICES_DIRECTORY/$SERVICE_ID',
+    instances: 1,
+    exec_mode: 'fork',
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env: { NODE_ENV: 'production' }
+  });
   fs.writeFileSync(filePath, 'module.exports = ' + JSON.stringify(config, null, 2) + ';\n');
 } catch(e) { console.error(e.message); process.exit(1); }
 "; then
