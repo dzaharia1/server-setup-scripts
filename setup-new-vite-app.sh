@@ -384,6 +384,7 @@ fi
 sudo touch $APPS_DIRECTORY/$APP_ID/.gitignore
 if echo '.env
 .DS_Store
+.claude/
 node_modules/
 dist/
 ' | sudo tee $APPS_DIRECTORY/$APP_ID/.gitignore > /dev/null; then

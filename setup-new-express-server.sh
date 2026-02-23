@@ -296,6 +296,7 @@ fi
 sudo touch $SERVICES_DIRECTORY/$SERVICE_ID/.gitignore
 if echo '.env
 .DS_Store
+.claude/
 node_modules/
 output.log
 ' | sudo tee $SERVICES_DIRECTORY/$SERVICE_ID/.gitignore > /dev/null; then
