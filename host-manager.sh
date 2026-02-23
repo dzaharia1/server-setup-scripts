@@ -239,7 +239,13 @@ display_git_remotes() {
             # Clean the option name by removing any special characters
             option=$(echo "$option" | tr -d '\r\n' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
             local full_path="$directory/$option"
-            local git_remote="$USER@$SERVER:$full_path"
+            # Try to read github_repo from setup-log.json, fall back to server path
+            local github_repo=$(execute_ssh_command "jq -r '.github_repo // empty' $full_path/setup-log.json 2>/dev/null" "false" 2>/dev/null | tr -d '\r\n')
+            if [ -n "$github_repo" ]; then
+                local git_remote="git@github.com:$(echo $github_repo | sed 's|github.com/||').git"
+            else
+                local git_remote="$USER@$SERVER:$full_path"
+            fi
             display_options+=("$(tput bold)$(tput setaf 4)$option$(tput sgr0): $(tput setaf 7)$git_remote$(tput sgr0)")
         fi
     done

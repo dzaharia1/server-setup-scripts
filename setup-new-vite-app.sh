@@ -16,6 +16,28 @@ BOLD_RED='\e[1;31m'
 BOLD_GREEN='\e[1;32m'
 END_COLOR='\e[0m' # This ends formatting
 
+# Source deploy secrets for GitHub integration
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEPLOY_SECRETS_FILE="$SCRIPT_DIR/.deploy-secrets"
+if [ -f "$DEPLOY_SECRETS_FILE" ]; then
+    source "$DEPLOY_SECRETS_FILE"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot find deploy secrets at $DEPLOY_SECRETS_FILE"
+    echo "Copy .deploy-secrets.example to .deploy-secrets and fill in values."
+    exit 1
+fi
+
+# Validate gh CLI and get GitHub username
+if ! command -v gh &>/dev/null; then
+    echo -e "${BOLD_RED}FAILED${END_COLOR} gh CLI not found. Install with: https://cli.github.com"
+    exit 1
+fi
+GITHUB_USER=$(gh api user --jq .login 2>/dev/null)
+if [ -z "$GITHUB_USER" ]; then
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot get GitHub username. Is 'gh' authenticated?"
+    exit 1
+fi
+
 # Function to convert app name to hyphenated app ID
 generate_app_id() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-'
@@ -28,6 +50,7 @@ DEFAULT_APP_ID=$(generate_app_id "$APP_NAME")
 # Prompt for the app ID with the default value
 read -p "App ID (Default: "${DEFAULT_APP_ID}"): " APP_ID
 APP_ID=${APP_ID:-$DEFAULT_APP_ID}
+GITHUB_REPO="$GITHUB_USER/$APP_ID"
 
 # Prompt for the domain name with the default value
 DZ_DOMAIN_NAME="$APP_ID.$DZ_DOMAIN"
@@ -47,6 +70,7 @@ echo "DZ Domain: https://$DZ_DOMAIN_NAME"
 echo "IM Domain: https://$IM_DOMAIN_NAME"
 echo "DM Domain: https://$DM_DOMAIN_NAME"
 echo "ADM Domain: https://$ADM_DOMAIN_NAME"
+echo "GitHub Repo: github.com/$GITHUB_REPO"
 
 echo " "
 
@@ -278,6 +302,7 @@ if echo "{
   \"app_id\": \"$APP_ID\",
   \"app_name\": \"$APP_NAME\",
   \"domain\": \"https://$DOMAIN_NAME\",
+  \"github_repo\": \"github.com/$GITHUB_REPO\",
   \"author\": \"$USER\",
   \"created_on\": \"$(date)\"
 }" | sudo tee $APPS_DIRECTORY/$APP_ID/setup-log.json > /dev/null; then
@@ -467,11 +492,79 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create basic .eslintrc.cjs file"
 fi
 
+# Create GitHub Actions deploy workflow
+if mkdir -p $APPS_DIRECTORY/$APP_ID/.github/workflows; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created .github/workflows directory"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create .github/workflows directory"
+fi
+
+if echo 'name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Push to server
+        run: |
+          git remote add production ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:'"$APPS_DIRECTORY/$APP_ID"'
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key" git push production main --force
+' | sudo tee $APPS_DIRECTORY/$APP_ID/.github/workflows/deploy.yml > /dev/null; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created GitHub Actions deploy workflow"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create GitHub Actions deploy workflow"
+fi
+
 # Commit basic code
 if cd $APPS_DIRECTORY/$APP_ID && git add . && git commit -m "Adding basic template" > /dev/null; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Committed initial code to repository"
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot commit initial code to repository"
+fi
+
+# Create private GitHub repo and push
+if cd $APPS_DIRECTORY/$APP_ID && \
+    gh repo create "$APP_ID" --private --source=. --remote=origin --push > /dev/null 2>&1; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created GitHub repo at github.com/$GITHUB_REPO and pushed"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create GitHub repo or push"
+fi
+
+# Set GitHub Actions secrets for deployment
+if gh secret set DEPLOY_HOST --body "$DEPLOY_HOST" --repo "$GITHUB_REPO" > /dev/null 2>&1; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Set DEPLOY_HOST secret on GitHub repo"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot set DEPLOY_HOST secret"
+fi
+
+if gh secret set DEPLOY_USER --body "$DEPLOY_USER" --repo "$GITHUB_REPO" > /dev/null 2>&1; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Set DEPLOY_USER secret on GitHub repo"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot set DEPLOY_USER secret"
+fi
+
+if gh secret set DEPLOY_SSH_KEY --repo "$GITHUB_REPO" < "$DEPLOY_SSH_KEY_PATH" > /dev/null 2>&1; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Set DEPLOY_SSH_KEY secret on GitHub repo"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot set DEPLOY_SSH_KEY secret"
 fi
 
 # Show confirmation messages
@@ -484,5 +577,8 @@ echo -e "* Or ${BOLD}https://$DZ_DOMAIN_NAME${END_COLOR}"
 echo -e "* Or ${BOLD}https://$IM_DOMAIN_NAME${END_COLOR}"
 echo -e "* Or ${BOLD}https://$DM_DOMAIN_NAME${END_COLOR}"
 echo -e "* Or ${BOLD}https://$ADM_DOMAIN_NAME${END_COLOR}"
-echo -e "\n* Clone this repository and push to origin to deploy: \n${BOLD}git clone $USER@$SERVER:$APPS_DIRECTORY/$APP_ID${END_COLOR}"
+echo -e "\n* Clone this repository and push to deploy: \n${BOLD}git clone git@github.com:$GITHUB_REPO.git${END_COLOR}"
 echo -e " "
+
+# Output the clone command for the host manager to parse
+echo "CLONE_COMMAND:git clone git@github.com:$GITHUB_REPO.git"

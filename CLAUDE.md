@@ -33,13 +33,17 @@ A collection of bash scripts for provisioning and managing web instances on a re
 
 ## Architecture
 
-**Vite apps** are static sites built with `npm run build` and served by Apache directly from `dist/`. Deployment happens via `git push` — a `post-receive` hook runs `npm install && npm run build` automatically.
+**Deployment** uses GitHub as the primary remote. Users push to a private GitHub repo, which triggers a GitHub Actions workflow that pushes to the server via SSH. The server's `post-receive` hook then runs the build/restart steps. The setup scripts automatically create the GitHub repo, set deployment secrets, and include the workflow file.
+
+**Prerequisites:** The `gh` CLI must be installed and authenticated on the server. A `.deploy-secrets` file (see `.deploy-secrets.example`) must exist alongside the scripts containing `DEPLOY_HOST`, `DEPLOY_USER`, and `DEPLOY_SSH_KEY_PATH`.
+
+**Vite apps** are static sites built with `npm run build` and served by Apache directly from `dist/`. The `post-receive` hook runs `npm install && npm run build` automatically when code is pushed from GitHub Actions.
 
 **Express servers** are Node.js processes managed by pm2. Apache proxies requests to a dynamically assigned localhost port (starting at 3100, incremented until free). The `post-receive` hook runs `npm install && pm2 restart <service-id>`.
 
 **SSL** is handled by Cloudflare Origin CA certificates stored at `/etc/ssl/cloudflare/danzaharia.com.{pem,key}`. Both VirtualHost blocks (80 + 443) are written to `/etc/apache2/sites-available/<domain>.conf`.
 
-**`setup-log.json`** is created in every instance directory and stores metadata (domain, id, name, port, created date). The rebuild/remove scripts read domain from this file to know which Apache config to operate on.
+**`setup-log.json`** is created in every instance directory and stores metadata (domain, id, name, port, github_repo, created date). The rebuild/remove scripts read domain from this file to know which Apache config to operate on.
 
 **Domains:** New instances default to `<id>.adanmade.app`. The setup scripts also configure aliases for `danzaharia.com`, `imadean.app`, and `danmade.app` subdomains.
 
@@ -70,3 +74,4 @@ A collection of bash scripts for provisioning and managing web instances on a re
 - Sudo password is prompted once and kept alive in the background via a loop.
 - Each step prints `SUCCESS` (green) or `FAILED` (red) and continues regardless of failure (non-fatal pattern).
 - `host-manager.sh` parses `CLONE_COMMAND:git clone ...` from setup script output to display the git remote.
+- The `display_git_remotes` function in host-manager reads `github_repo` from each instance's `setup-log.json`, falling back to the server SSH path for older instances.
