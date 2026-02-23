@@ -215,6 +215,24 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot change directory to $SERVICES_DIRECTORY/$SERVICE_ID"
 fi
 
+# Add entry to ecosystem.config.js
+ECOSYSTEM_FILE="/home/dan/ecosystem.config.js"
+if node -e "
+try {
+  const fs = require('fs');
+  const filePath = '$ECOSYSTEM_FILE';
+  let config;
+  try { config = require(filePath); } catch(e) { config = { apps: [] }; }
+  config.apps = config.apps.filter(a => a.name !== '$SERVICE_ID');
+  config.apps.push({ name: '$SERVICE_ID', script: '$SERVICES_DIRECTORY/$SERVICE_ID/server.js' });
+  fs.writeFileSync(filePath, 'module.exports = ' + JSON.stringify(config, null, 2) + ';\n');
+} catch(e) { console.error(e.message); process.exit(1); }
+"; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Added $SERVICE_ID to ecosystem.config.js"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot add $SERVICE_ID to ecosystem.config.js"
+fi
+
 # Create a VirtualHost config file that proxies requests to node
 sudo touch /etc/apache2/sites-available/$DOMAIN_NAME.conf
 if echo "<VirtualHost *:80>

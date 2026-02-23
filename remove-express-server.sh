@@ -85,6 +85,23 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot stop or remove $SERVICE_ID from pm2"
 fi
 
+# Remove entry from ecosystem.config.js
+ECOSYSTEM_FILE="/home/dan/ecosystem.config.js"
+if node -e "
+try {
+  const fs = require('fs');
+  const filePath = '$ECOSYSTEM_FILE';
+  if (!fs.existsSync(filePath)) process.exit(0);
+  let config = require(filePath);
+  config.apps = config.apps.filter(a => a.name !== '$SERVICE_ID');
+  fs.writeFileSync(filePath, 'module.exports = ' + JSON.stringify(config, null, 2) + ';\n');
+} catch(e) { console.error(e.message); process.exit(1); }
+"; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Removed $SERVICE_ID from ecosystem.config.js"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot remove $SERVICE_ID from ecosystem.config.js"
+fi
+
 # Disable site in Apache
 if sudo a2dissite $DOMAIN_NAME > /dev/null; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Disabled site in Apache"
