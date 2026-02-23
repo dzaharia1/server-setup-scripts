@@ -406,12 +406,21 @@ else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot commit initial code to repository"
 fi
 
-# Create private GitHub repo and push
+# Create private GitHub repo
 if cd $SERVICES_DIRECTORY/$SERVICE_ID && \
-    gh repo create "$SERVICE_ID" --private --source=. --remote=origin --push > /dev/null 2>&1; then
-    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created GitHub repo at github.com/$GITHUB_REPO and pushed"
+    gh repo create "$SERVICE_ID" --private > /dev/null 2>&1; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created GitHub repo at github.com/$GITHUB_REPO"
 else
-    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create GitHub repo or push"
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create GitHub repo"
+fi
+
+# Add GitHub remote and push
+if cd $SERVICES_DIRECTORY/$SERVICE_ID && \
+    git remote add origin "git@github.com:$GITHUB_REPO.git" 2>/dev/null && \
+    git push -u origin main > /dev/null 2>&1; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Pushed initial commit to GitHub"
+else
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot push to GitHub"
 fi
 
 # Set GitHub Actions secrets for deployment
