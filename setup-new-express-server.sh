@@ -197,15 +197,17 @@ fi
 
 # Create basic package.json file
 sudo touch $SERVICES_DIRECTORY/$SERVICE_ID/package.json
-if echo '{
-  "name": "'"$SERVICE_ID"'",
+sudo tee $SERVICES_DIRECTORY/$SERVICE_ID/package.json > /dev/null <<EOF
+{
+  "name": "$SERVICE_ID",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node '"$SERVICES_DIRECTORY"'/'"$SERVICE_ID"'/server.js",
-    "dev": "nodemon server.js"
+    "start": "node $SERVICES_DIRECTORY/$SERVICE_ID/server.js",
+    "dev": "nodemon server.js",
+    "deploy": "git push origin main && sleep 6 && gh run watch \$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')"
   },
   "author": "",
   "license": "ISC",
@@ -215,10 +217,12 @@ if echo '{
     "url": "^0.11.3"
   }
 }
-' | sudo tee $SERVICES_DIRECTORY/$SERVICE_ID/package.json > /dev/null; then
-	echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created basic package.json file"
+EOF
+
+if [ $? -eq 0 ]; then
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created basic package.json file"
 else
-	echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create basic package.json file"
+    echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create basic package.json file"
 fi
 
 # Install node modules

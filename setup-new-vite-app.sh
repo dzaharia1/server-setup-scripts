@@ -264,33 +264,37 @@ fi
 
 # Create a basic package.json
 sudo touch $APPS_DIRECTORY/$APP_ID/package.json
-if echo "{
-  \"name\": \"$APP_ID\",
-  \"private\": true,
-  \"version\": \"0.0.0\",
-  \"type\": \"module\",
-  \"scripts\": {
-    \"dev\": \"vite\",
-    \"build\": \"vite build\",
-    \"lint\": \"eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0\",
-    \"preview\": \"vite preview\"
+sudo tee $APPS_DIRECTORY/$APP_ID/package.json > /dev/null <<EOF
+{
+  "name": "$APP_ID",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "deploy": "git push origin main && sleep 6 && gh run watch \$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
   },
-  \"dependencies\": {
-    \"react\": \"^18.2.0\",
-    \"react-dom\": \"^18.2.0\",
-    \"styled-components\": \"^6.1.11\"
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "styled-components": "^6.1.11"
   },
-  \"devDependencies\": {
-    \"@types/react\": \"^18.2.43\",
-    \"@types/react-dom\": \"^18.2.17\",
-    \"@vitejs/plugin-react\": \"^4.2.1\",
-    \"eslint\": \"^8.55.0\",
-    \"eslint-plugin-react\": \"^7.33.2\",
-    \"eslint-plugin-react-hooks\": \"^4.6.0\",
-    \"eslint-plugin-react-refresh\": \"^0.4.5\",
-    \"vite\": \"^5.0.8\"
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "vite": "^5.0.8"
   }
-}" | sudo tee $APPS_DIRECTORY/$APP_ID/package.json > /dev/null; then
+}
+EOF
+if [ $? -eq 0 ]; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created basic package.json file"
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create basic package.json file"
