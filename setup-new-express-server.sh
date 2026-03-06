@@ -1,14 +1,11 @@
 #!/bin/bash
 
 # Set up variables
-SERVER="server.danzaharia.com"
-USER="dan"
-ADMIN_CONTACT="zaharia.danny@gmail.com"
+SERVER="208.113.128.190"
+USER="zach"
+ADMIN_CONTACT="zachtemkin@gmail.com"
 SERVICES_DIRECTORY="/home/$USER/services"
-DZ_DOMAIN="danzaharia.com"
-IM_DOMAIN="imadean.app"
-DM_DOMAIN="danmade.app"
-ADM_DOMAIN="adanmade.app"
+DOMAIN="zach.coffee"
 
 # Set up formatting for use later
 BOLD='\e[1m'
@@ -53,24 +50,17 @@ SERVICE_ID=${SERVICE_ID:-$DEFAULT_SERVICE_ID}
 GITHUB_REPO="$GITHUB_USER/$SERVICE_ID"
 
 # Prompt for the domain name with the default value
-DZ_DOMAIN_NAME="$SERVICE_ID.$DZ_DOMAIN"
-IM_DOMAIN_NAME="$SERVICE_ID.$IM_DOMAIN"
-DM_DOMAIN_NAME="$SERVICE_ID.$DM_DOMAIN"
-ADM_DOMAIN_NAME="$SERVICE_ID.$ADM_DOMAIN"
+DEFAULT_DOMAIN_NAME="$SERVICE_ID.$DOMAIN"
 
-
-read -p "URL (Default: "${ADM_DOMAIN_NAME}"): " DOMAIN_NAME
-DOMAIN_NAME=${DOMAIN_NAME:-$DM_DOMAIN_NAME}
+read -p "URL (Default: "${DEFAULT_DOMAIN_NAME}"): " DOMAIN_NAME
+DOMAIN_NAME=${DOMAIN_NAME:-$DEFAULT_DOMAIN_NAME}
 
 echo " "
 
 # Display the collected information
 echo "Service Name: $SERVICE_NAME"
 echo "Service ID: $SERVICE_ID"
-echo "DZ Domain: https://$DZ_DOMAIN_NAME"
-echo "IM Domain: https://$IM_DOMAIN_NAME"
-echo "DM Domain: https://$DM_DOMAIN_NAME"
-echo "ADM Domain: https://$ADM_DOMAIN_NAME"
+echo "Domain: https://$DOMAIN_NAME"
 echo "GitHub Repo: github.com/$GITHUB_REPO"
 
 echo " "
@@ -245,7 +235,7 @@ else
 fi
 
 # Add entry to ecosystem.config.js
-ECOSYSTEM_FILE="/home/dan/ecosystem.config.js"
+ECOSYSTEM_FILE="/home/$USER/ecosystem.config.js"
 if node -e "
 try {
   const fs = require('fs');
@@ -276,7 +266,7 @@ fi
 sudo touch /etc/apache2/sites-available/$DOMAIN_NAME.conf
 if echo "<VirtualHost *:80>
     ServerName $DOMAIN_NAME
-    ServerAlias www.$DOMAIN_NAME $DZ_DOMAIN_NAME $IM_DOMAIN_NAME $DM_DOMAIN_NAME $ADM_DOMAIN_NAME
+    ServerAlias www.$DOMAIN_NAME
     ServerAdmin $ADMIN_CONTACT
 
     # Redirect HTTP to HTTPS
@@ -288,13 +278,13 @@ if echo "<VirtualHost *:80>
 
 <VirtualHost *:443>
     ServerName $DOMAIN_NAME
-    ServerAlias www.$DOMAIN_NAME $DZ_DOMAIN_NAME $IM_DOMAIN_NAME $DM_DOMAIN_NAME $ADM_DOMAIN_NAME
+    ServerAlias www.$DOMAIN_NAME
     ServerAdmin $ADMIN_CONTACT
 
     # SSL Configuration using Cloudflare Origin CA
     SSLEngine on
-    SSLCertificateFile /etc/ssl/cloudflare/danzaharia.com.pem
-    SSLCertificateKeyFile /etc/ssl/cloudflare/danzaharia.com.key
+    SSLCertificateFile /etc/ssl/cloudflare/zach.coffee.pem
+    SSLCertificateKeyFile /etc/ssl/cloudflare/zach.coffee.key
 
     # SSL Security Settings
     SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1
@@ -484,10 +474,6 @@ echo -e "--------------- ${BOLD}DONE${END_COLOR} ---------------"
 echo -e "------------------------------------ \n"
 echo -e "${BOLD}*** $SERVICE_ID is now set up! ***${END_COLOR}\n"
 echo -e "* Visit ${BOLD}https://$DOMAIN_NAME${END_COLOR} to see the new site"
-echo -e "* Or ${BOLD}https://$DZ_DOMAIN_NAME${END_COLOR}"
-echo -e "* Or ${BOLD}https://$IM_DOMAIN_NAME${END_COLOR}"
-echo -e "* Or ${BOLD}https://$DM_DOMAIN_NAME${END_COLOR}"
-echo -e "* Or ${BOLD}https://$ADM_DOMAIN_NAME${END_COLOR}"
 echo -e "\n* Clone this repository and push to deploy: \n${BOLD}git clone git@github.com:$GITHUB_REPO.git${END_COLOR}"
 echo -e " "
 

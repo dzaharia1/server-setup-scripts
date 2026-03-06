@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Set up variables
-USER="dan"
-SERVER="server.danzaharia.com"
+USER="zach"
+SERVER="208.113.128.190"
 SCRIPTS_DIRECTORY="/home/$USER/scripts"
 VITE_APPS_DIRECTORY="/home/$USER/vite-apps"
 SERVICES_DIRECTORY="/home/$USER/services"

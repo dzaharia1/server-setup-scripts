@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-A collection of bash scripts for provisioning and managing web instances on a remote Linux server (`server.danzaharia.com`). Two instance types are actively maintained: **Vite (React) apps** and **Express servers**. Legacy React (CRA) scripts still exist but Vite is the current standard.
+A collection of bash scripts for provisioning and managing web instances on a remote Linux server (`208.113.128.190` / `server.zach.coffee`). Two instance types are actively maintained: **Vite (React) apps** and **Express servers**. Legacy React (CRA) scripts still exist but Vite is the current standard.
 
 ## Script Inventory
 
@@ -24,7 +24,7 @@ A collection of bash scripts for provisioning and managing web instances on a re
 ## Server Directory Layout
 
 ```
-/home/dan/
+/home/zach/
   vite-apps/<app-id>/       # Vite apps; Apache serves dist/
   services/<service-id>/    # Express servers; Apache proxies to pm2 process
   react-apps/<app-id>/      # Legacy CRA apps; Apache serves build/
@@ -41,11 +41,11 @@ A collection of bash scripts for provisioning and managing web instances on a re
 
 **Express servers** are Node.js processes managed by pm2. Apache proxies requests to a dynamically assigned localhost port (starting at 3100, incremented until free). The `post-receive` hook runs `npm install && pm2 restart <service-id>`.
 
-**SSL** is handled by Cloudflare Origin CA certificates stored at `/etc/ssl/cloudflare/danzaharia.com.{pem,key}`. Both VirtualHost blocks (80 + 443) are written to `/etc/apache2/sites-available/<domain>.conf`.
+**SSL** is handled by Cloudflare Origin CA certificates stored at `/etc/ssl/cloudflare/zach.coffee.{pem,key}`. Both VirtualHost blocks (80 + 443) are written to `/etc/apache2/sites-available/<domain>.conf`.
 
 **`setup-log.json`** is created in every instance directory and stores metadata (domain, id, name, port, github_repo, created date). The rebuild/remove scripts read domain from this file to know which Apache config to operate on.
 
-**Domains:** New instances default to `<id>.adanmade.app`. The setup scripts also configure aliases for `danzaharia.com`, `imadean.app`, and `danmade.app` subdomains.
+**Domains:** New instances default to `<id>.zach.coffee`.
 
 ## Prettier Config (applied to all new apps)
 

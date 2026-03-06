@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set up variables
-USER="dan"
+USER="zach"
 SERVICES_DIRECTORY="/home/$USER/services"
 
 # Set up formatting for use later
@@ -86,7 +86,7 @@ else
 fi
 
 # Remove entry from ecosystem.config.js
-ECOSYSTEM_FILE="/home/dan/ecosystem.config.js"
+ECOSYSTEM_FILE="/home/$USER/ecosystem.config.js"
 if node -e "
 try {
   const fs = require('fs');

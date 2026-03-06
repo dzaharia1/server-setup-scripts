@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set up variables
-USER="dan"
+USER="zach"
 SERVICES_DIRECTORY="/home/$USER/services"
 
 # Set up formatting for use later

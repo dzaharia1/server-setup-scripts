@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set up variables
-USER="dan"
+USER="zach"
 APPS_DIRECTORY="/home/$USER/vite-apps"
 
 # Set up formatting for use later
