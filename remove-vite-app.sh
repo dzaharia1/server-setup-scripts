@@ -113,6 +113,8 @@ if [ -n "$GITHUB_REPO" ]; then
     else
         echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot delete GitHub repo $GITHUB_REPO"
     fi
+else
+    echo -e "${BOLD}SKIPPED${END_COLOR} No GitHub repo found in setup-log.json"
 fi
 
 # Show confirmation messages
