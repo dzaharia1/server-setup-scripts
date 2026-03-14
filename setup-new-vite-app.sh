@@ -277,20 +277,20 @@ sudo tee $APPS_DIRECTORY/$APP_ID/package.json > /dev/null <<EOF
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "styled-components": "^6.1.11"
+  \"dependencies\": {
+    \"react\": \"^19.0.0\",
+    \"react-dom\": \"^19.0.0\",
+    \"styled-components\": \"^6.1.14\"
   },
-  "devDependencies": {
-    "@types/react": "^18.2.43",
-    "@types/react-dom": "^18.2.17",
-    "@vitejs/plugin-react": "^4.2.1",
-    "eslint": "^8.55.0",
-    "eslint-plugin-react": "^7.33.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.5",
-    "vite": "^5.0.8"
+  \"devDependencies\": {
+    \"@types/react\": \"^19.0.8\",
+    \"@types/react-dom\": \"^19.0.3\",
+    \"@vitejs/plugin-react\": \"^4.3.4\",
+    \"eslint\": \"^8.57.1\",
+    \"eslint-plugin-react\": \"^7.37.4\",
+    \"eslint-plugin-react-hooks\": \"^4.6.2\",
+    \"eslint-plugin-react-refresh\": \"^0.4.19\",
+    \"vite\": \"^5.4.14\"
   }
 }
 EOF

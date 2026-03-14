@@ -212,9 +212,9 @@ sudo tee $SERVICES_DIRECTORY/$SERVICE_ID/package.json > /dev/null <<EOF
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^5.0.1",
     "path": "^0.12.7",
-    "url": "^0.11.3"
+    "url": "^0.11.4"
   }
 }
 EOF
