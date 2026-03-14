@@ -62,7 +62,7 @@ trap 'kill $SUDO_KEEP_ALIVE_PID' EXIT
 
 echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Password correct"
 
-# Find the DOMAIN_NAME from setup-log.json
+# Find the DOMAIN_NAME and GITHUB_REPO from setup-log.json
 SETUP_LOG_FILE="$SERVICES_DIRECTORY/$SERVICE_ID/setup-log.json"
 if [ -f "$SETUP_LOG_FILE" ]; then
     DOMAIN_NAME=$(jq -r '.domain' "$SETUP_LOG_FILE" | sed 's|https://||')
@@ -72,6 +72,7 @@ if [ -f "$SETUP_LOG_FILE" ]; then
     else
         echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Found domain name $DOMAIN_NAME in setup-log.json "
     fi
+    GITHUB_REPO=$(jq -r '.github_repo // empty' "$SETUP_LOG_FILE" | sed 's|github.com/||')
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot find file setup-log.json"
     exit 1
@@ -128,6 +129,15 @@ if sudo service apache2 reload; then
     echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Reloaded Apache"
 else
     echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot reload Apache"
+fi
+
+# Delete GitHub repo
+if [ -n "$GITHUB_REPO" ]; then
+    if gh repo delete "$GITHUB_REPO" --yes > /dev/null 2>&1; then
+        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Deleted GitHub repo $GITHUB_REPO"
+    else
+        echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot delete GitHub repo $GITHUB_REPO"
+    fi
 fi
 
 # Show confirmation messages depending on optional steps
