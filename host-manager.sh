@@ -1,126 +1,115 @@
 #!/bin/bash
 
-# Set up variables
-USER="dan"
-SERVER="server.danzaharia.com"
-SCRIPTS_DIRECTORY="/home/$USER/scripts"
-VITE_APPS_DIRECTORY="/home/$USER/vite-apps"
-SERVICES_DIRECTORY="/home/$USER/services"
-DOMAINS_DIRECTORY="/home/$USER/domains"
+# Set up formatting
+BOLD='\033[1m'
+BOLD_RED='\033[1;31m'
+BOLD_GREEN='\033[1;32m'
+BOLD_CYAN='\033[1;36m'
+END_COLOR='\033[0m'
 
-# Function to print the menu with minimal updates
+# Source deploy secrets
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEPLOY_SECRETS_FILE="$SCRIPT_DIR/.deploy-secrets"
+if [ -f "$DEPLOY_SECRETS_FILE" ]; then
+    source "$DEPLOY_SECRETS_FILE"
+else
+    echo "Cannot find deploy secrets at $DEPLOY_SECRETS_FILE"
+    exit 1
+fi
+
+if [ -z "$LOCAL_PROJECTS_DIR" ] || [ -z "$BILLING_ACCOUNT_ID" ]; then
+    echo "LOCAL_PROJECTS_DIR or BILLING_ACCOUNT_ID not set in .deploy-secrets"
+    exit 1
+fi
+
+eval LOCAL_PROJECTS_DIR="$LOCAL_PROJECTS_DIR"
+REGISTRY_DIR="$SCRIPT_DIR/apps-registry"
+REGISTRY_FILE="$REGISTRY_DIR/apps-registry.json"
+
+# Validate tools
+for cmd in gh gcloud jq firebase; do
+    if ! command -v $cmd &>/dev/null; then
+        echo "$cmd CLI not found. Please install it."
+        exit 1
+    fi
+done
+
+# --- Startup Sync ---
+GITHUB_USER=$(gh api user --jq .login 2>/dev/null)
+if [ -z "$GITHUB_USER" ]; then
+    echo "GitHub CLI (gh) is not authenticated. Run 'gh auth login' first."
+    exit 1
+fi
+
+if [ ! -d "$REGISTRY_DIR" ]; then
+    echo "Registry repository not found locally. Searching GitHub..."
+    if ! gh repo view "$GITHUB_USER/apps-registry" &>/dev/null; then
+        echo "Creating private GitHub repository: apps-registry..."
+        mkdir -p "$REGISTRY_DIR"
+        cd "$REGISTRY_DIR"
+        git init
+        git checkout -b main
+        echo "[]" > apps-registry.json
+        git add apps-registry.json
+        git commit -m "Initialize registry"
+        gh repo create "apps-registry" --private --source=. --remote=origin --push >/dev/null 2>&1
+        cd "$SCRIPT_DIR"
+    else
+        echo "Cloning apps-registry from GitHub..."
+        gh repo clone "$GITHUB_USER/apps-registry" "$REGISTRY_DIR" >/dev/null 2>&1
+    fi
+else
+    echo "Syncing registry with GitHub..."
+    cd "$REGISTRY_DIR"
+    git pull >/dev/null 2>&1
+    cd "$SCRIPT_DIR"
+fi
+
+# Function to print the main menu
 print_menu() {
-    local level=$1
-    local header=$2
-    local selected=$3
-    local mode=$4
-    shift 4
+    local header=$1
+    local selected=$2
+    shift 2
     local options=("$@")
     
     echo -e "\033[H\033[J" # Clear the screen
-    
-    echo "$(tput bold)$(tput smso)  $header  $(tput sgr0)"
+    echo -e "${BOLD_CYAN}  $header  ${END_COLOR}"
     echo " "
     
-    # Determine color based on mode
-    if [ "$mode" == "add" ]; then
-        selected_symbol="+"
-        option_color=$(tput setaf 2) # Green
-    elif [ "$mode" == "remove" ]; then
-        selected_symbol="-"
-        option_color=$(tput setaf 1) # Red
-    elif [ "$mode" == "reload" ]; then
-        selected_symbol="↻"
-        option_color=$(tput setaf 6) # Cyan
-    elif [ "$mode" == "view" ]; then
-        selected_symbol="→"
-        option_color=$(tput setaf 4) # Blue
-    else
-        selected_symbol="→"
-        option_color=$(tput sgr0) # Default color
-    fi
-    
-    if [ $level -gt 1 ]; then
-        for ((i = 0; i < ${#options[@]}; i++)); do
-            if [ $i -eq $selected ]; then
-                echo -e "$option_color$(tput bold)$selected_symbol ${options[i]}$(tput sgr0)"
-            else
-                echo -e "$(tput sgr0)  ${options[i]}$(tput sgr0)"
-            fi
-        done
-        echo " "
-        if [ $selected -eq ${#options[@]} ]; then
-            echo -e "$(tput setaf 5)$(tput bold)← Back$(tput sgr0)"
+    for ((i = 0; i < ${#options[@]}; i++)); do
+        if [ $i -eq $selected ]; then
+            echo -e "  $(tput setaf 6)$(tput bold)→ ${options[i]}$(tput sgr0)"
         else
-            echo "  Back"
+            echo -e "    ${options[i]}"
         fi
-    else
-        for ((i = 0; i < ${#options[@]}; i++)); do
-            if [ "${options[i]}" == "" ]; then
-                echo " " # Print a blank line for the unselectable blank option
-            elif [ $i -eq $selected ]; then
-                if [ "${options[i]}" == "Create New Instance" ]; then
-                    echo -e "$(tput setaf 2)$(tput bold)+ ${options[i]}$(tput sgr0)"
-                elif [ "${options[i]}" == "Remove Existing Instance" ]; then
-                    echo -e "$(tput setaf 1)$(tput bold)- ${options[i]}$(tput sgr0)"
-                elif [ "${options[i]}" == "Reload Existing Instance" ]; then
-                    echo -e "$(tput setaf 6)$(tput bold)↻ ${options[i]}$(tput sgr0)"
-                elif [ "${options[i]}" == "View Git Remotes" ]; then
-                    echo -e "$(tput setaf 4)$(tput bold)→ ${options[i]}$(tput sgr0)"
-                elif [ "${options[i]}" == "Exit" ]; then
-                    echo -e "$(tput setaf 5)$(tput bold)✕ ${options[i]}$(tput sgr0)"
-                else
-                    echo -e "$(tput setaf 5)$(tput bold)→ ${options[i]}$(tput sgr0)"
-                fi
-            else
-                echo -e "$(tput sgr0)  ${options[i]}$(tput sgr0)"
-            fi
-        done
-    fi
-      
+    done
     echo " "
 }
 
-# Function to handle the arrow key inputs and back option
+# General TUI navigation
 navigate_menu() {
-    local level=$1
-    local header=$2
-    local mode=$3
-    shift 3
+    local header=$1
+    shift 1
     local options=("$@")
     local selected=0
 
     while true; do
-        print_menu $level "$header" $selected "$mode" "${options[@]}"
+        print_menu "$header" $selected "${options[@]}"
 
         read -rsn1 input
         if [[ $input == $'\x1b' ]]; then
-            read -rsn2 input # read 2 more characters
+            read -rsn2 input # read arrow keys
             case $input in
                 '[A') # Up arrow
                     ((selected--))
                     if [ $selected -lt 0 ]; then
-                        selected=${#options[@]}
-                    fi
-                    # Skip the unselectable blank option
-                    if [ $level -eq 1 ] && [ $selected -eq 4 ]; then
-                        ((selected--))
-                        if [ $selected -lt 0 ]; then
-                            selected=${#options[@]}
-                        fi
+                        selected=$(( ${#options[@]} - 1 ))
                     fi
                     ;;
                 '[B') # Down arrow
                     ((selected++))
-                    if [ $selected -gt ${#options[@]} ]; then
+                    if [ $selected -ge ${#options[@]} ] ; then
                         selected=0
-                    fi
-                    # Skip the unselectable blank option
-                    if [ $level -eq 1 ] && [ $selected -eq 4 ]; then
-                        ((selected++))
-                        if [ $selected -gt ${#options[@]} ]; then
-                            selected=0
-                        fi
                     fi
                     ;;
             esac
@@ -132,261 +121,402 @@ navigate_menu() {
     selected_option=$selected
 }
 
-# Function to execute SSH command and return the output
-execute_ssh_command() {
-    local command=$1
-    local interactive=$2
-
-    if [ "$interactive" == "true" ]; then
-      ssh -t $USER@$SERVER "$command"
-      echo " "
-      read -p "$(tput bold)DONE$(tput sgr0) Press enter to continue"
-    else
-      ssh -t $USER@$SERVER "$command"
-    fi
-}
-
-# Function to display dynamic menu from remote directory with header and back option
-display_remote_directory() {
-    local level=$1
-    local directory=$2
-    local type=$3
-    local action=$4
-
-    local folders=$(execute_ssh_command "find $directory -maxdepth 1 -mindepth 1 -type d" "false")
-
-    echo "$folders" >&2
-
-    # Check if the SSH command returned any directories
-    if [ -z "$folders" ]; then
-        echo "Nothing found in $directory"
-        echo " "
-        read -p "$(tput bold)DONE$(tput sgr0) Press enter to continue"
-        return 1 # Indicate that back was selected
-    fi
-
-    local options=()
-    IFS=$'\n' read -rd '' -a options <<<"$folders"
-
-    # Remove the specified paths and the trailing slash from the output
-    for i in "${!options[@]}"; do
-        options[i]=$(basename "${options[i]}")
-    done
-
-    printf "%s\n" "${options[@]}" >&2
-
-    navigate_menu $level "$action" "$type" "${options[@]}"
-    selected_folder=${options[$selected_option]}
+# Interactive app viewing, deletion and redeployment (TUI with Ctrl+R detection)
+view_apps_interactive() {
+    local show_removed=false
     
-    if [ $selected_option -eq ${#options[@]} ]; then
-        return 1 # Indicate that back was selected
-    else
-        case $action in
-            "Remove Vite App")
-                echo "Removing Vite App: $selected_folder"
-                execute_ssh_command "bash $SCRIPTS_DIRECTORY/remove-vite-app.sh --app-id $selected_folder" "true"
-                ;;
-            "Remove Express Server")
-                echo "Removing Express Server: $selected_folder"
-                execute_ssh_command "bash $SCRIPTS_DIRECTORY/remove-express-server.sh --service-id $selected_folder" "true"
-                ;;
-            "Rebuild Vite App")
-                echo "Rebuilding Vite App: $selected_folder"
-                execute_ssh_command "bash $SCRIPTS_DIRECTORY/rebuild-vite-app.sh --app-id $selected_folder" "true"
-                ;;
-            "Restart Express Server")
-                echo "Restarting Express Server: $selected_folder"
-                execute_ssh_command "bash $SCRIPTS_DIRECTORY/restart-express-server.sh --service-id $selected_folder" "true"
-                ;;
-        esac
-        return 0
-    fi
-}
-
-# Function to display git remotes for directories
-display_git_remotes() {
-    local level=$1
-    local directory=$2
-    local type=$3
-    local action=$4
-
-    local folders=$(execute_ssh_command "find $directory -maxdepth 1 -mindepth 1 -type d" "false")
-
-    echo "$folders" >&2
-
-    # Check if the SSH command returned any directories
-    if [ -z "$folders" ]; then
-        echo "Nothing found in $directory"
-        echo " "
-        read -p "$(tput bold)DONE$(tput sgr0) Press enter to continue"
-        return 1 # Indicate that back was selected
-    fi
-
-    local options=()
-    IFS=$'\n' read -rd '' -a options <<<"$folders"
-
-    # Remove the specified paths and the trailing slash from the output
-    for i in "${!options[@]}"; do
-        options[i]=$(basename "${options[i]}")
-    done
-
-    printf "%s\n" "${options[@]}" >&2
-
-    # Create display options for git remotes
-    local display_options=()
-    for option in "${options[@]}"; do
-        if [ -n "$option" ]; then
-            # Clean the option name by removing any special characters
-            option=$(echo "$option" | tr -d '\r\n' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-            local full_path="$directory/$option"
-            # Try to read github_repo from setup-log.json, fall back to server path
-            local github_repo=$(execute_ssh_command "jq -r '.github_repo // empty' $full_path/setup-log.json 2>/dev/null" "false" 2>/dev/null | tr -d '\r\n')
-            if [ -n "$github_repo" ]; then
-                local git_remote="git@github.com:$(echo $github_repo | sed 's|github.com/||').git"
-            else
-                local git_remote="$USER@$SERVER:$full_path"
-            fi
-            display_options+=("$(tput bold)$(tput setaf 4)$option$(tput sgr0): $(tput setaf 7)$git_remote$(tput sgr0)")
-        fi
-    done
-    
-    # Display the git remotes with navigation
-    local selected=0
     while true; do
-        echo -e "\033[H\033[J" # Clear the screen
-        echo "$(tput bold)$(tput smso)  $action  $(tput sgr0)"
-        echo " "
-        
-        # Display all git remotes (non-selectable)
-        for display_option in "${display_options[@]}"; do
-            echo -e "  $display_option"
-        done
-        
-        echo " "
-        if [ $selected -eq 0 ]; then
-            echo -e "$(tput setaf 5)$(tput bold)← Back$(tput sgr0)"
-        else
-            echo "  Back"
+        local filter="active"
+        local header="Active Applications (Press Ctrl+R for Archives)"
+        if [ "$show_removed" = true ]; then
+            filter="removed"
+            header="Archived Applications (Press Ctrl+R for Active)"
         fi
-        echo " "
+        
+        # Load app names from registry
+        if [ ! -f "$REGISTRY_FILE" ] || [ ! -s "$REGISTRY_FILE" ]; then
+            echo "No applications recorded in registry."
+            read -p "Press Enter to go back..."
+            return
+        fi
+        
+        local app_ids=()
+        IFS=$'\n' read -rd '' -a app_ids <<<"$(jq -r ".[] | select(.status == \"$filter\") | .id" "$REGISTRY_FILE")"
+        
+        if [ ${#app_ids[@]} -eq 0 ] || [ "${app_ids[0]}" = "" ]; then
+            app_ids=()
+        fi
+        
+        # Draw TUI
+        local selected=0
+        while true; do
+            echo -e "\033[H\033[J"
+            echo -e "${BOLD_CYAN}  $header  ${END_COLOR}\n"
+            
+            if [ ${#app_ids[@]} -eq 0 ]; then
+                echo "    (No applications found)"
+            else
+                for ((i=0; i<${#app_ids[@]}; i++)); do
+                    if [ $i -eq $selected ]; then
+                        echo -e "  $(tput setaf 6)$(tput bold)→ ${app_ids[i]}$(tput sgr0)"
+                    else
+                        echo -e "    ${app_ids[i]}"
+                    fi
+                done
+            fi
+            echo -e "\n  $(tput setaf 5)← Back$(tput sgr0)"
+            
+            # Read character (detecting Ctrl+R = \x12)
+            read -rsn1 input
+            if [[ "$input" == $'\x12' ]]; then
+                # Toggle views
+                if [ "$show_removed" = true ]; then
+                    show_removed=false
+                else
+                    show_removed=true
+                fi
+                break # break inner loop to reload app ids
+            elif [[ $input == $'\x1b' ]]; then
+                read -rsn2 input
+                case $input in
+                    '[A')
+                        ((selected--))
+                        if [ $selected -lt 0 ]; then
+                            selected=${#app_ids[@]}
+                        fi
+                        ;;
+                    '[B')
+                        ((selected++))
+                        if [ $selected -gt ${#app_ids[@]} ]; then
+                            selected=0
+                        fi
+                        ;;
+                esac
+            elif [[ $input == "" ]]; then
+                # Enter selected option
+                if [ $selected -eq ${#app_ids[@]} ]; then
+                    return # Go Back
+                fi
+                
+                local selected_id="${app_ids[$selected]}"
+                show_details_and_actions "$selected_id" "$filter"
+                break # Reload list after return from action
+            fi
+        done
+    done
+}
 
-        read -rsn1 input
-        if [[ $input == $'\x1b' ]]; then
-            read -rsn2 input # read 2 more characters
-            # For this menu, we don't need arrow key handling since there's only "Back"
-        elif [[ $input == "" ]]; then # Enter key
+# Display details, delete or trigger restore
+show_details_and_actions() {
+    local app_id=$1
+    local filter=$2
+    
+    while true; do
+        local name=$(jq -r ".[] | select(.id == \"$app_id\") | .name" "$REGISTRY_FILE")
+        local domain=$(jq -r ".[] | select(.id == \"$app_id\") | .domain" "$REGISTRY_FILE")
+        local firebase_project_id=$(jq -r ".[] | select(.id == \"$app_id\") | .firebase_project_id" "$REGISTRY_FILE")
+        local gh_repo=$(jq -r ".[] | select(.id == \"$app_id\") | .github_repo" "$REGISTRY_FILE")
+        local date=$(jq -r ".[] | select(.id == \"$app_id\") | .created_at" "$REGISTRY_FILE")
+        
+        echo -e "\033[H\033[J"
+        echo -e "${BOLD_CYAN}=== Application Details ===${END_COLOR}\n"
+        echo -e "Name:           ${BOLD}$name${END_COLOR}"
+        echo -e "ID:             $app_id"
+        if [ -n "$firebase_project_id" ] && [ "$firebase_project_id" != "null" ]; then
+            echo -e "Firebase Proj:  $firebase_project_id"
+        fi
+        echo -e "Domain:         https://$domain"
+        echo -e "GitHub Repo:    https://$gh_repo"
+        echo -e "Created On:     $date"
+        echo -e "Status:         $filter"
+        echo " "
+        
+        if [ "$filter" = "removed" ]; then
+            echo -e "  [R] Restore / Redeploy application"
+            echo -e "  [Esc] Go back to list"
+            echo " "
+            
+            read -rsn1 input
+            if [[ "$input" == $'\x1b' ]] || [[ "$input" == "q" ]] || [[ "$input" == "Q" ]]; then
+                return
+            elif [[ "$input" == "r" ]] || [[ "$input" == "R" ]]; then
+                echo " "
+                read -p "Would you like to RESTORE/REDEPLOY this application? (y/N): " CONFIRM
+                if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
+                    restore_application "$app_id" "$name" "$domain"
+                    return
+                fi
+            fi
+        else
+            echo -e "  [D] Delete / Remove application"
+            echo -e "  [Esc] Go back to list"
+            echo " "
+            
+            read -rsn1 input
+            if [[ "$input" == $'\x1b' ]] || [[ "$input" == "q" ]] || [[ "$input" == "Q" ]]; then
+                return
+            elif [[ "$input" == "d" ]] || [[ "$input" == "D" ]]; then
+                echo " "
+                read -p "Would you like to DELETE/REMOVE this application? (y/N): " CONFIRM
+                if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
+                    ./remove-app.sh --app-id "$app_id"
+                    # Refresh registry after removal
+                    cd "$REGISTRY_DIR" && git pull >/dev/null 2>&1 && cd "$SCRIPT_DIR"
+                    read -p "Press Enter to continue..."
+                    return
+                fi
+            fi
+        fi
+    done
+}
+
+# Application restoration logic
+restore_application() {
+    local app_id=$1
+    local app_name=$2
+    local domain_name=$3
+    
+    echo -e "\nStarting restoration for $app_id..."
+    
+    # 1. Clone repository back
+    local app_dir="$LOCAL_PROJECTS_DIR/$app_id"
+    if [ -d "$app_dir" ]; then
+        echo -e "${BOLD_RED}FAILED${END_COLOR} A folder already exists at $app_dir. Move or rename it first."
+        read -p "Press Enter to continue..."
+        return
+    fi
+    
+    echo "Cloning monorepo from GitHub..."
+    if ! gh repo clone "$GITHUB_USER/$app_id" "$app_dir" >/dev/null 2>&1; then
+        echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot clone repository."
+        read -p "Press Enter to continue..."
+        return
+    fi
+    
+    # 2. Recreate Firebase Project
+    local random_num=$(jot -r 1 10000 99999 2>/dev/null || shuf -i 10000-99999 -n 1 2>/dev/null || echo $((10000 + RANDOM % 90000)))
+    local firebase_project_id="$app_id-$random_num"
+    
+    echo "Creating Firebase project $firebase_project_id..."
+    if npx firebase-tools projects:create "$firebase_project_id" --display-name "$app_name"; then
+        echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Created Firebase Project"
+    else
+        echo -e "${BOLD_RED}FAILED${END_COLOR} Cannot create Firebase project. It might already exist."
+        rm -rf "$app_dir"
+        read -p "Press Enter to continue..."
+        return
+    fi
+    
+    echo "Linking Billing Account $BILLING_ACCOUNT_ID..."
+    gcloud billing projects link "$firebase_project_id" --billing-account="$BILLING_ACCOUNT_ID" >/dev/null
+    
+    echo "Enabling required Google Cloud APIs (Firebase, Hosting, Cloud Functions, Cloud Run, Artifact Registry, Cloud Build)..."
+    gcloud services enable \
+        firebase.googleapis.com \
+        firebasehosting.googleapis.com \
+        cloudfunctions.googleapis.com \
+        run.googleapis.com \
+        artifactregistry.googleapis.com \
+        cloudbuild.googleapis.com \
+        cloudbilling.googleapis.com \
+        eventarc.googleapis.com \
+        --project="$firebase_project_id" >/dev/null 2>&1
+    
+    # Wait for API activation to propagate globally
+    echo "Waiting for API propagation..."
+    sleep 10
+    
+    # Overwrite root configs for monorepo
+    cat <<EOF > "$app_dir/.firebaserc"
+{
+  "projects": {
+    "default": "$firebase_project_id"
+  }
+}
+EOF
+    mkdir -p "$app_dir/.github/workflows"
+    cat <<EOF > "$app_dir/.github/workflows/deploy.yml"
+name: Build and Deploy to Firebase
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/functions/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build Frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Install Functions Dependencies
+        run: npm ci
+        working-directory: backend/functions
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: \${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+
+      - name: Deploy to Firebase
+        run: npx firebase-tools deploy --project $firebase_project_id --force
+EOF
+    
+    # 3. Recreate Service Account Key
+    echo "Configuring GCP service account and keys..."
+    gcloud iam service-accounts create firebase-deployer \
+        --description="Deployment Service Account" \
+        --display-name="Firebase Deployer" \
+        --project="$firebase_project_id" >/dev/null 2>&1
+        
+    echo "Configuring IAM policy bindings for Deployer Service Account..."
+    for i in {1..5}; do
+        if gcloud projects add-iam-policy-binding "$firebase_project_id" \
+            --member="serviceAccount:firebase-deployer@$firebase_project_id.iam.gserviceaccount.com" \
+            --role="roles/editor" >/dev/null 2>&1 && \
+           gcloud projects add-iam-policy-binding "$firebase_project_id" \
+            --member="serviceAccount:firebase-deployer@$firebase_project_id.iam.gserviceaccount.com" \
+            --role="roles/iam.serviceAccountUser" >/dev/null 2>&1 && \
+           gcloud projects add-iam-policy-binding "$firebase_project_id" \
+            --member="serviceAccount:firebase-deployer@$firebase_project_id.iam.gserviceaccount.com" \
+            --role="roles/cloudfunctions.admin" >/dev/null 2>&1 && \
+           gcloud projects add-iam-policy-binding "$firebase_project_id" \
+            --member="serviceAccount:firebase-deployer@$firebase_project_id.iam.gserviceaccount.com" \
+            --role="roles/run.admin" >/dev/null 2>&1; then
             break
         fi
+        sleep 2
+    done
+        
+    echo "Generating service account keys..."
+    for i in {1..5}; do
+        if gcloud iam service-accounts keys create "$app_dir/firebase-key.json" \
+            --iam-account="firebase-deployer@$firebase_project_id.iam.gserviceaccount.com" >/dev/null 2>&1; then
+            break
+        fi
+        sleep 2
     done
     
-    return 1 # Always return 1 to go back since this is just for viewing
+    # 4. Upload keys back to GitHub Secrets
+    echo "Updating secrets on GitHub repositories..."
+    gh secret set FIREBASE_SERVICE_ACCOUNT_KEY --repo "$GITHUB_USER/$app_id" < "$app_dir/firebase-key.json" >/dev/null 2>&1
+    rm -f "$app_dir/firebase-key.json"
+    
+    # 5. Connect domains on Firebase
+    echo "Linking custom domains in Firebase Hosting..."
+    ACCESS_TOKEN=$(gcloud auth print-access-token 2>/dev/null)
+    if [ -n "$ACCESS_TOKEN" ]; then
+        echo "Registering $app_id.danzaharia.com..."
+        response_dz=$(curl -s -w "\n%{http_code}" -X POST "https://firebasehosting.googleapis.com/v1beta1/projects/$firebase_project_id/sites/$firebase_project_id/customDomains?customDomainId=$app_id.danzaharia.com" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "X-Goog-User-Project: $firebase_project_id" \
+            -H "Content-Type: application/json" \
+            -d "{}")
+        code_dz=$(echo "$response_dz" | tail -n 1)
+        body_dz=$(echo "$response_dz" | head -n -1)
+        if [ "$code_dz" -ne 200 ] && [ "$code_dz" -ne 201 ]; then
+            echo -e "${BOLD_RED}WARNING:${END_COLOR} Failed to register $app_id.danzaharia.com (HTTP $code_dz)"
+            echo "Details: $body_dz"
+        else
+            echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Registered $app_id.danzaharia.com"
+        fi
+            
+        echo "Registering $app_id.adanmade.app..."
+        response_adma=$(curl -s -w "\n%{http_code}" -X POST "https://firebasehosting.googleapis.com/v1beta1/projects/$firebase_project_id/sites/$firebase_project_id/customDomains?customDomainId=$app_id.adanmade.app" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "X-Goog-User-Project: $firebase_project_id" \
+            -H "Content-Type: application/json" \
+            -d "{}")
+        code_adma=$(echo "$response_adma" | tail -n 1)
+        body_adma=$(echo "$response_adma" | head -n -1)
+        if [ "$code_adma" -ne 200 ] && [ "$code_adma" -ne 201 ]; then
+            echo -e "${BOLD_RED}WARNING:${END_COLOR} Failed to register $app_id.adanmade.app (HTTP $code_adma)"
+            echo "Details: $body_adma"
+        else
+            echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} Registered $app_id.adanmade.app"
+        fi
+    fi
+    
+    # 6. Re-configure Cloudflare records for both domains
+    if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+        if [ -n "$DZ_ZONE_ID" ]; then
+            echo "Creating Cloudflare CNAME record for $app_id.danzaharia.com..."
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$DZ_ZONE_ID/dns_records" \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data "{
+                  \"type\": \"CNAME\",
+                  \"name\": \"$app_id.danzaharia.com\",
+                  \"content\": \"$firebase_project_id.web.app\",
+                  \"ttl\": 1,
+                  \"proxied\": false
+                }" > /dev/null
+        fi
+        if [ -n "$ADMA_ZONE_ID" ]; then
+            echo "Creating Cloudflare CNAME record for $app_id.adanmade.app..."
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ADMA_ZONE_ID/dns_records" \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data "{
+                  \"type\": \"CNAME\",
+                  \"name\": \"$app_id.adanmade.app\",
+                  \"content\": \"$firebase_project_id.web.app\",
+                  \"ttl\": 1,
+                  \"proxied\": false
+                }" > /dev/null
+        fi
+    fi
+    
+    # 7. Update status in registry
+    echo "Updating status in synchronized registry..."
+    cd "$REGISTRY_DIR"
+    jq --arg f_pid "$firebase_project_id" --arg app_id "$app_id" 'map(if .id == $app_id and .status == "removed" then .status = "active" | .firebase_project_id = $f_pid else . end)' apps-registry.json > apps-registry.tmp.json && mv apps-registry.tmp.json apps-registry.json
+    git add apps-registry.json
+    git commit -m "Restore app: $app_id"
+    git push >/dev/null 2>&1
+    cd "$SCRIPT_DIR"
+    
+    # 8. Trigger deployment push
+    echo "Triggering automated deployments on GitHub..."
+    (cd "$app_dir" && git add .firebaserc .github/workflows/deploy.yml && git commit -m "Update Firebase project ID for restore" && git push origin main) >/dev/null 2>&1
+    
+    echo -e "${BOLD_GREEN}SUCCESS${END_COLOR} $app_id has been fully restored and is redeploying!"
+    read -p "Press Enter to continue..."
 }
 
+# --- Main Program Loop ---
 while true; do
-    # Level 1 Menu
-    level1_options=("Create New Instance" "Remove Existing Instance" "Reload Existing Instance" "View Git Remotes" "" "Exit")
-    navigate_menu 1 "Host Manager" "" "${level1_options[@]}"
-    level1_selection=$selected_option
+    menu_options=("Create app" "View apps" "Exit")
+    navigate_menu "Let Dan Code!" "${menu_options[@]}"
+    selection=$selected_option
 
-    if [ $level1_selection -eq 5 ]; then
-        break
-    elif [ $level1_selection -eq 0 ]; then
-        while true; do
-            # Level 2 (Set Up)
-            setup_options=("Vite App" "Express Server")
-            navigate_menu 2 "Create New Instance" "add" "${setup_options[@]}"
-            setup_selection=$selected_option
-            
-            if [ $setup_selection -eq ${#setup_options[@]} ]; then
-                break
-            else
-                case $setup_selection in
-                    0)
-                        execute_ssh_command "$SCRIPTS_DIRECTORY/setup-new-vite-app.sh" "true"
-                        ;;
-                    1)
-                        execute_ssh_command "$SCRIPTS_DIRECTORY/setup-new-express-server.sh" "true"
-                        ;;
-                esac
-            fi
-        done
-    elif [ $level1_selection -eq 1 ]; then
-        while true; do
-            # Level 2 (Remove)
-            remove_options=("Vite App" "Express Server")
-            navigate_menu 2 "Remove Existing Instance" "remove" "${remove_options[@]}"
-            remove_selection=$selected_option
-            
-            if [ $remove_selection -eq ${#remove_options[@]} ]; then
-                break
-            else
-                case $remove_selection in
-                    0)
-                        # Level 3 (Remove Vite App)
-                        if ! display_remote_directory 3 "$VITE_APPS_DIRECTORY" "remove" "Remove Vite App"; then
-                            continue
-                        fi
-                        ;;
-                    1)
-                        # Level 3 (Remove Express Server)
-                        if ! display_remote_directory 3 "$SERVICES_DIRECTORY" "remove" "Remove Express Server"; then
-                            continue
-                        fi
-                        ;;
-                esac
-            fi
-        done
-    elif [ $level1_selection -eq 2 ]; then
-        while true; do
-            # Level 2 (Reload)
-            reload_options=("Vite App" "Express Server")
-            navigate_menu 2 "Reload Existing Instance" "reload" "${reload_options[@]}"
-            reload_selection=$selected_option
-            
-            if [ $reload_selection -eq ${#reload_options[@]} ]; then
-                break
-            else
-                case $reload_selection in
-                    0)
-                        # Level 3 (Rebuild Vite App)
-                        if ! display_remote_directory 3 "$VITE_APPS_DIRECTORY" "reload" "Rebuild Vite App"; then
-                            continue
-                        fi
-                        ;;
-                    1)
-                        # Level 3 (Restart Express Server)
-                        if ! display_remote_directory 3 "$SERVICES_DIRECTORY" "reload" "Restart Express Server"; then
-                            continue
-                        fi
-                        ;;
-                esac
-            fi
-        done
-    elif [ $level1_selection -eq 3 ]; then
-        while true; do
-            # Level 2 (View Git Remotes)
-            view_options=("Vite App" "Express Server")
-            navigate_menu 2 "View Git Remotes" "view" "${view_options[@]}"
-            view_selection=$selected_option
-            
-            if [ $view_selection -eq ${#view_options[@]} ]; then
-                break
-            else
-                case $view_selection in
-                    0)
-                        # Level 3 (View Vite App Git Remotes)
-                        if ! display_git_remotes 3 "$VITE_APPS_DIRECTORY" "" "Vite App Git Remotes"; then
-                            continue
-                        fi
-                        ;;
-                    1)
-                        # Level 3 (View Express Server Git Remotes)
-                        if ! display_git_remotes 3 "$SERVICES_DIRECTORY" "" "Express Server Git Remotes"; then
-                            continue
-                        fi
-                        ;;
-                esac
-            fi
-        done
-    fi
+    case $selection in
+        0)
+            ./setup-new-app.sh
+            # Pull latest registry updates after creation completes
+            cd "$REGISTRY_DIR" && git pull >/dev/null 2>&1 && cd "$SCRIPT_DIR"
+            read -p "Press Enter to return to menu..."
+            ;;
+        1)
+            view_apps_interactive
+            ;;
+        2)
+            echo "Exiting..."
+            break
+            ;;
+    esac
 done
